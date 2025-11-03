@@ -6,6 +6,8 @@ DROP TABLE IF EXISTS artista_cancion;
 DROP TABLE IF EXISTS cancion;
 DROP TABLE IF EXISTS album;
 DROP TABLE IF EXISTS genero;
+DROP TABLE IF EXISTS pedido;
+DROP TABLE IF EXISTS pedido_item;
 
 
 CREATE TABLE genero (
@@ -52,6 +54,22 @@ CREATE TABLE noticia (
   contenidoHTML TEXT NOT NULL,
   fecha TIMESTAMP DEFAULT NOW(),
   autor INTEGER
+);
+
+CREATE TABLE pedido (
+  id SERIAL PRIMARY KEY,
+  cliente INTEGER NOT NULL,
+  fecha TIMESTAMP DEFAULT NOW(),
+  total NUMERIC (10,2) DEFAULT 0,
+  estado VARCHAR(50) DEFAULT 'pendiente'
+);
+
+CREATE TABLE pedido_item (
+  pedido INTEGER REFERENCES pedido(id) ON DELETE CASCADE,
+  merch INTEGER REFERENCES merchandising(id),
+  cantidad INTEGER NOT NULL,
+  precio_unitario NUMERIC(10,2) NOT NULL,
+  PRIMARY KEY (pedido_id, merch_id)
 );
 
 COMMIT;
