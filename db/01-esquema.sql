@@ -69,7 +69,7 @@ CREATE TABLE pedido_item (
   merch INTEGER REFERENCES merchandising(id),
   cantidad INTEGER NOT NULL,
   precio_unitario NUMERIC(10,2) NOT NULL,
-  PRIMARY KEY (pedido_id, merch_id)
+  PRIMARY KEY (pedido, merch)
 );
 
 COMMIT;
