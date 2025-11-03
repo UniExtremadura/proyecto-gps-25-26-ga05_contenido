@@ -19,7 +19,7 @@ type PedidoAPI struct {
 	DB *sql.DB
 }
 
-func (api *PedidoAPI) SimularPago(c *gin.Context) {
+func (api *PedidoAPI) Pago(c *gin.Context) {
 	var req PedidoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "JSON inválido"})

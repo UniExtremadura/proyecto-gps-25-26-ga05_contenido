@@ -73,7 +73,7 @@ func Pedido(db *sql.DB, req PedidoRequest) (*PedidoResponse, error) {
 	// Crear pedido
 	var pedidoID int32
 	err = tx.QueryRow(
-		"INSERT INTO pedido (cliente_id, total, estado) VALUES ($1, $2, $3) RETURNING id",
+		"INSERT INTO pedido (cliente, total, estado) VALUES ($1, $2, $3) RETURNING id",
 		req.ClienteID, total, "pagado",
 	).Scan(&pedidoID)
 	if err != nil {
@@ -89,7 +89,7 @@ func Pedido(db *sql.DB, req PedidoRequest) (*PedidoResponse, error) {
 		}
 
 		_, err = tx.Exec(
-			"INSERT INTO pedido_item (pedido_id, merch_id, cantidad, precio_unitario) VALUES ($1, $2, $3, $4)",
+			"INSERT INTO pedido_item (pedido, merch, cantidad, precio_unitario) VALUES ($1, $2, $3, $4)",
 			pedidoID, p.MerchID, p.Cantidad, precio,
 		)
 		if err != nil {
