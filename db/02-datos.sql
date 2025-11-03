@@ -99,7 +99,7 @@ INSERT INTO noticia (titulo, contenidoHTML, fecha, autor) VALUES
 
 INSERT INTO pedido (cliente,fecha,estado) VALUES
 -- Pedidos del usuario 1 (Laura Sanchez)
-(1,"2024-10-02 18:00:55",'entregado'), (1,'2025-11-02 21:00:00','pendiente'), (1,'2025-08-13 11:00:00','en curso'),
+(1,'2024-10-02 18:00:55','entregado'), (1,'2025-11-02 21:00:00','pendiente'), (1,'2025-08-13 11:00:00','en curso'),
 -- Pedidos del usuario 2 (Carlos Ruiz)
 (2,'2024-10-03 19:00:00','entregado'),
 -- Pedidos del usuario 3 (Ana Lopez)
