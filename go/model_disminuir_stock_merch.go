@@ -9,8 +9,29 @@
 
 package openapi
 
+import "database/sql"
+
 type DisminuirStockMerch struct {
 
 	// Nueva cantidad a restar del producto
 	Cantidad int32 `json:"cantidad"`
+}
+
+func DecrementMechStock(db *sql.DB, id int32, cantidad int32) error {
+	result, err := db.Exec(
+		"UPDATE merchandising SET stock = stock - $1 WHERE id = $2",
+		cantidad, id,
+	)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }

@@ -10,58 +10,220 @@
 package openapi
 
 import (
+	"database/sql"
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
 type MerchandisingAPI struct {
+	DB *sql.DB
 }
 
 // Get /merch
-// Listar todos los productos de merchandising 
+// Listar todos los productos de merchandising
 func (api *MerchandisingAPI) MerchGet(c *gin.Context) {
+	merchs, err := GetAllMerch(api.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	c.JSON(200, gin.H{
+		"status": "OK",
+		"merch":  merchs,
+	})
 }
 
 // Delete /merch/:id
-// Eliminar un producto 
+// Eliminar un producto
 func (api *MerchandisingAPI) MerchIdDelete(c *gin.Context) {
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	err = DeleteMerch(api.DB, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Producto no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
 	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	c.JSON(200, gin.H{"status": "OK", "message": "Producto eliminado correctamente"})
 }
 
 // Patch /merch/:id/disminuirStockMerch
-// Disminuir la cantidad disponible de un producto 
+// Disminuir la cantidad disponible de un producto
 func (api *MerchandisingAPI) MerchIdDisminuirStockMerchPatch(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Id inválido"})
+		return
+	}
+
+	var req RecargarStockMerch
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+
+	if req.Cantidad <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "La cantidad debe ser mayor que cero"})
+		return
+	}
+	err = DecrementMechStock(api.DB, id, req.Cantidad)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "mensaje": "Producto no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status":   "OK",
+		"message":  "Stock incrementado correctamente",
+		"merch_id": id,
+		"cantidad": req.Cantidad,
+	})
 }
 
 // Get /merch/:id
-// Obtener un producto de merchandising 
+// Obtener un producto de merchandising
 func (api *MerchandisingAPI) MerchIdGet(c *gin.Context) {
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	merch, err := GetMerch(api.DB, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Producto no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+	}
+
 	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	c.JSON(200, gin.H{
+		"status": "OK",
+		"merch":  merch,
+	})
 }
 
 // Patch /merch/:id
-// Actualizar un producto 
+// Actualizar un producto
 func (api *MerchandisingAPI) MerchIdPatch(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	// Leer body JSON
+	var req UpdateMerchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+
+	// Llamada al modelo
+	updatedMerch, err := req.UpdateMerch(api.DB, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Merch no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
+	// Respuesta exitosa
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
+		"merch":  updatedMerch,
+	})
 }
 
 // Patch /merch/:id/recargarStockMerch
-// Aumentar la cantidad disponible de un producto 
+// Aumentar la cantidad disponible de un producto
 func (api *MerchandisingAPI) MerchIdRecargarStockMerchPatch(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Id inválido"})
+		return
+	}
+
+	var req RecargarStockMerch
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+
+	if req.Cantidad <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "La cantidad debe ser mayor que cero"})
+		return
+	}
+	err = IncrementMerchStock(api.DB, id, req.Cantidad)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "mensaje": "Producto no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status":   "OK",
+		"message":  "Stock incrementado correctamente",
+		"merch_id": id,
+		"cantidad": req.Cantidad,
+	})
 }
 
 // Post /merch
-// Crear un nuevo producto de merchandising 
+// Crear un nuevo producto de merchandising
 func (api *MerchandisingAPI) MerchPost(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
-}
+	var req CreateMerchRequest
 
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+	if req.Precio <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El precio debe ser mayor de cero"})
+		return
+	}
+
+	nuevoMerch, err := req.CreateMerch(api.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+	// Your handler implementation
+	c.JSON(200, gin.H{
+		"status": "OK",
+		"merch":  nuevoMerch,
+	})
+}
