@@ -79,15 +79,51 @@ paths:
           application/json:
             example:
               nombre: Electro Beats
-              duracion: 38:20
+              duracion: 2300
               urlImagen: https://example.com/images/electrobeats.jpg
               fecha: 2025-01-10
-              genero:
-                id: 3
-                nombre: Electronica
+              genero: 3
               artista: 3
             schema:
-              $ref: "#/components/schemas/Album"
+              $ref: "#/components/schemas/CreateAlbumRequest"
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: Nombre del album
+                  example: Electro Beats
+                duracion:
+                  type: integer
+                  description: Duracion del album en segundos
+                  example: 2300
+                urlImagen:
+                  type: string
+                  description: URL de la imagen (opcional si se sube archivo)
+                  example: https://example.com/images/electrobeats.jpg
+                fecha:
+                  type: string
+                  format: date
+                  description: Fecha de lanzamiento
+                  example: 2025-01-10
+                genero:
+                  type: integer
+                  description: ID del genero musical
+                  example: 3
+                artista:
+                  type: integer
+                  description: ID del artista
+                  example: 3
+                cover:
+                  type: string
+                  format: binary
+                  description: Archivo de portada (JPEG, PNG, WEBP - max 5MB)
+              required:
+                - nombre
+                - fecha
+                - genero
+                - artista
         required: true
       responses:
         "201":
@@ -163,7 +199,34 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Album"
+              $ref: "#/components/schemas/UpdateAlbumRequest"
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                nombre:
+                  type: string
+                  description: Nombre del album
+                duracion:
+                  type: integer
+                  description: Duracion del album en segundos
+                urlImagen:
+                  type: string
+                  description: URL de la imagen
+                fecha:
+                  type: string
+                  format: date
+                  description: Fecha de lanzamiento
+                genero:
+                  type: integer
+                  description: ID del genero musical
+                artista:
+                  type: integer
+                  description: ID del artista
+                cover:
+                  type: string
+                  format: binary
+                  description: Archivo de portada (JPEG, PNG, WEBP - max 5MB)
         required: true
       responses:
         "200":
@@ -616,6 +679,62 @@ components:
       - genero
       - nombre
       - urlImagen
+      type: object
+    CreateAlbumRequest:
+      example:
+        nombre: Electro Beats
+        duracion: 2300
+        urlImagen: https://example.com/images/electrobeats.jpg
+        fecha: 2025-01-10
+        genero: 3
+        artista: 3
+      properties:
+        nombre:
+          example: Electro Beats
+          type: string
+        duracion:
+          description: Duracion del album en segundos
+          example: 2300
+          type: integer
+        urlImagen:
+          example: https://example.com/images/electrobeats.jpg
+          type: string
+        fecha:
+          example: 2025-01-10
+          format: date
+          type: string
+        genero:
+          description: ID del genero musical
+          example: 3
+          type: integer
+        artista:
+          description: ID del artista
+          example: 3
+          type: integer
+      required:
+      - nombre
+      - fecha
+      - genero
+      - artista
+      type: object
+    UpdateAlbumRequest:
+      properties:
+        nombre:
+          type: string
+        duracion:
+          description: Duracion del album en segundos
+          type: integer
+        urlImagen:
+          type: string
+        fecha:
+          format: date
+          type: string
+        genero:
+          description: ID del genero musical
+          type: integer
+        artista:
+          description: ID del artista
+          type: integer
       type: object
     AlbumDetalle:
       allOf:

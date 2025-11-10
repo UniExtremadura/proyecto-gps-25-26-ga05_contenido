@@ -29,5 +29,8 @@ func main() {
 
 	router := sw.NewRouter(routes)
 
+	// Servir archivos estáticos desde la carpeta uploads
+	router.Static("/uploads", "./uploads")
+
 	log.Fatal(router.Run(":8080"))
 }

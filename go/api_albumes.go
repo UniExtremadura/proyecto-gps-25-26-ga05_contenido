@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -107,11 +108,70 @@ func (api *AlbumesAPI) AlbumsIdPatch(c *gin.Context) {
 		return
 	}
 
-	// Leer body JSON
 	var req UpdateAlbumRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
-		return
+	contentType := c.GetHeader("Content-Type")
+
+	// Soportar JSON o multipart/form-data
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Parsear formulario multipart
+		if err := c.Request.ParseMultipartForm(MaxImageSize); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error parseando formulario"})
+			return
+		}
+
+		// Leer campos opcionales del form
+		if nombre := c.PostForm("nombre"); nombre != "" {
+			req.Nombre = &nombre
+		}
+		if urlImagen := c.PostForm("urlImagen"); urlImagen != "" {
+			req.UrlImagen = &urlImagen
+		}
+		if fecha := c.PostForm("fecha"); fecha != "" {
+			req.Fecha = &fecha
+		}
+		if durStr := c.PostForm("duracion"); durStr != "" {
+			var dur int32
+			if _, err := fmt.Sscan(durStr, &dur); err == nil {
+				req.Duracion = &dur
+			}
+		}
+		if genStr := c.PostForm("genero"); genStr != "" {
+			var gen int32
+			if _, err := fmt.Sscan(genStr, &gen); err == nil {
+				req.Genero = &gen
+			}
+		}
+		if artStr := c.PostForm("artista"); artStr != "" {
+			var art int32
+			if _, err := fmt.Sscan(artStr, &art); err == nil {
+				req.Artista = &art
+			}
+		}
+
+		// Procesar archivo de portada si existe
+		if _, err := c.FormFile("cover"); err == nil {
+			// Obtener el álbum actual para saber el artista
+			currentAlbum, err := GetAlbum(api.DB, id)
+			if err != nil {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Album no encontrado"})
+				return
+			}
+
+			// Guardar portada
+			coverURL, err := SaveUploadedCover(c, "cover", currentAlbum.Artista, id)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Error subiendo portada: %s", err.Error())})
+				return
+			}
+			req.UrlImagen = &coverURL
+		}
+
+	} else {
+		// Leer body JSON
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+			return
+		}
 	}
 
 	// Llamada al modelo
@@ -143,17 +203,88 @@ func (api *AlbumesAPI) AlbumsIdRecargarStockAlbumPatch(c *gin.Context) {
 // Crear un nuevo album
 func (api *AlbumesAPI) AlbumsPost(c *gin.Context) {
 	var req CreateAlbumRequest
+	contentType := c.GetHeader("Content-Type")
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
-		return
+	// Soportar JSON o multipart/form-data
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Parsear formulario multipart
+		if err := c.Request.ParseMultipartForm(MaxImageSize); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Error parseando formulario multipart"})
+			return
+		}
+
+		// Leer campos del formulario
+		req.Nombre = c.PostForm("nombre")
+		req.UrlImagen = c.PostForm("urlImagen")
+		req.Fecha = c.PostForm("fecha")
+
+		// Convertir duracion (opcional)
+		if durStr := c.PostForm("duracion"); durStr != "" {
+			var dur int32
+			if _, err := fmt.Sscan(durStr, &dur); err == nil {
+				req.Duracion = &dur
+			}
+		}
+
+		// Convertir genero
+		var generoID int32
+		if _, err := fmt.Sscan(c.PostForm("genero"), &generoID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "genero inválido"})
+			return
+		}
+		req.Genero = generoID
+
+		// Convertir artista
+		var artistaID int32
+		if _, err := fmt.Sscan(c.PostForm("artista"), &artistaID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "artista inválido"})
+			return
+		}
+		req.Artista = artistaID
+
+		// Validar nombre (requerido)
+		if req.Nombre == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "el campo 'nombre' es requerido"})
+			return
+		}
+
+	} else {
+		// Parsear JSON tradicional
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+			return
+		}
 	}
+
 	// Crear album en la BD
 	nuevoAlbum, err := req.CreateAlbum(api.DB)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
 		return
 	}
+
+	// Si hay archivo de portada en multipart, procesarlo
+	if strings.Contains(contentType, "multipart/form-data") {
+		if _, err := c.FormFile("cover"); err == nil {
+			// Guardar portada
+			coverURL, err := SaveUploadedCover(c, "cover", nuevoAlbum.Artista, nuevoAlbum.Id)
+			if err != nil {
+				// Si falla la subida, eliminar el álbum creado
+				DeleteAlbum(api.DB, nuevoAlbum.Id)
+				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Error subiendo portada: %s", err.Error())})
+				return
+			}
+
+			// Actualizar urlImagen en la BD
+			updateReq := UpdateAlbumRequest{UrlImagen: &coverURL}
+			nuevoAlbum, err = updateReq.UpdateAlbum(api.DB, nuevoAlbum.Id)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Error actualizando URL de portada"})
+				return
+			}
+		}
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"status": "OK",
 		"album":  nuevoAlbum,
