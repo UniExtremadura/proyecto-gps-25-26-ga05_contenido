@@ -10,15 +10,16 @@
 package main
 
 import (
-	"log"
 	"contenido/db"
 	sw "contenido/go"
+	"log"
 )
 
 func main() {
 	db.InitDatabase()
 	defer db.DB.Close()
 	routes := sw.ApiHandleFunctions{
+		AlbumesAPI:       sw.AlbumesAPI{DB: db.DB},
 		MerchandisingAPI: sw.MerchandisingAPI{DB: db.DB},
 		PedidoAPI:        sw.PedidoAPI{DB: db.DB},
 		SearchAPI:        sw.SearchAPI{DB: db.DB},

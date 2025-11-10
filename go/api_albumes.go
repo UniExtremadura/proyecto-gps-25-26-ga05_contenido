@@ -10,58 +10,152 @@
 package openapi
 
 import (
+	"database/sql"
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
 type AlbumesAPI struct {
+	DB *sql.DB
 }
 
 // Get /albums
-// Listar albumes con filtros opcionales 
+// Listar albumes con filtros opcionales
 func (api *AlbumesAPI) AlbumsGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	albums, err := GetAllAlbums(api.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
+		"albums": albums,
+	})
 }
 
 // Delete /albums/:id
-// Eliminar un album 
+// Eliminar un album
 func (api *AlbumesAPI) AlbumsIdDelete(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	err = DeleteAlbum(api.DB, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Album no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "OK",
+		"message": "Album eliminado correctamente",
+	})
 }
 
 // Patch /albums/:id/disminuirStockAlbum
-// Disminuir la cantidad disponible de un album 
+// Disminuir la cantidad disponible de un album
 func (api *AlbumesAPI) AlbumsIdDisminuirStockAlbumPatch(c *gin.Context) {
 	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	c.JSON(http.StatusNotImplemented, gin.H{"status": "not_implemented"})
 }
 
 // Get /albums/:id
-// Obtener detalles de un album 
+// Obtener detalles de un album
 func (api *AlbumesAPI) AlbumsIdGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	album, err := GetAlbum(api.DB, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Album no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
+		"album":  album,
+	})
 }
 
 // Patch /albums/:id
-// Actualizar un album existente 
+// Actualizar un album existente
 func (api *AlbumesAPI) AlbumsIdPatch(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	var id int32
+	_, err := fmt.Sscan(idParam, &id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	// Leer body JSON
+	var req UpdateAlbumRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+
+	// Llamada al modelo
+	updatedAlbum, err := req.UpdateAlbum(api.DB, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": "Album no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+
+	// Respuesta exitosa
+	c.JSON(http.StatusOK, gin.H{
+		"status": "OK",
+		"album":  updatedAlbum,
+	})
 }
 
 // Patch /albums/:id/recargarStockAlbum
-// Aumentar la cantidad disponible de un producto 
+// Aumentar la cantidad disponible de un album
 func (api *AlbumesAPI) AlbumsIdRecargarStockAlbumPatch(c *gin.Context) {
 	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	c.JSON(http.StatusNotImplemented, gin.H{"status": "not_implemented"})
 }
 
 // Post /albums
-// Crear un nuevo album 
+// Crear un nuevo album
 func (api *AlbumesAPI) AlbumsPost(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
-}
+	var req CreateAlbumRequest
 
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "JSON inválido"})
+		return
+	}
+	// Crear album en la BD
+	nuevoAlbum, err := req.CreateAlbum(api.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"status": "OK",
+		"album":  nuevoAlbum,
+	})
+}
