@@ -207,6 +207,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			handleFunctions.MerchandisingAPI.MerchPost,
 		},
 		{
+			"NoticiasIdGet",
+			http.MethodGet,
+			"/noticias/:id",
+			handleFunctions.NoticiasAPI.NoticiasIdGet,
+		},
+		{
 			"NoticiasGet",
 			http.MethodGet,
 			"/noticias",

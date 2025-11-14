@@ -85,7 +85,54 @@ INSERT INTO noticia (titulo, contenidoHTML, fecha, autor) VALUES
  '2023-11-01 10:30:00', 2),
 
 ('Bad Bunny lidera los Latin Grammy',
- '<p>El artista puertorriqueño se lleva cuatro premios en la gala.</p>', 
+ '<h2>El fenómeno puertorriqueño consolida su reinado en la música latina</h2>
+
+<p>La gala de los Latin Grammy 2024 será recordada como la noche de Bad Bunny. 
+El artista puertorriqueño, cuyo nombre real es Benito Antonio Martínez Ocasio, 
+se alzó con cuatro de los premios más codiciados de la ceremonia, demostrando 
+una vez más por qué es considerado el artista más influyente de la música urbana 
+contemporánea. La audiencia del MGM Grand Arena en Las Vegas no pudo contener 
+los aplausos cuando el boricua subía repetidamente al escenario.</p>
+
+<p>Entre sus triunfos más destacados se encuentran el premio a <strong>Mejor Álbum de Música Urbana</strong> 
+por "Nadie Sabe Lo Que Va a Pasar Mañana", <strong>Mejor Canción Urbana</strong> por "Monaco", 
+<strong>Mejor Interpretación Reggaetón</strong> y el codiciado <strong>Mejor Álbum del Año</strong>. 
+Este último galardón representa un reconocimiento especial, ya que compitió 
+contra pesos pesados de la industria como Rosalía y Karol G.</p>
+
+<blockquote>
+"Esto no es solo para mí, es para todos los que creen en la evolución de nuestra música. 
+Seguiremos rompiendo barreras y demostrando que el reggaetón y la música urbana 
+tienen un lugar indiscutible en la historia musical"
+<br><br>
+<em>- Bad Bunny, durante su discurso de aceptación</em>
+</blockquote>
+
+<p>La producción musical de su álbum ganador ha sido elogiada por la crítica especializada, 
+que destaca la madurez artística y la evolución sonora que Bad Bunny ha demostrado 
+en este trabajo. A diferencia de sus producciones anteriores, "Nadie Sabe Lo Que Va 
+a Pasar Mañana" incorpora elementos de jazz, rock alternativo y música electrónica, 
+creando un sonido único que redefine los límites del género urbano.</p>
+
+<p>Los asistentes a la gala disfrutaron de una actuación sorpresa del artista, 
+quien interpretó una versión acústica de "Monaco" acompañado únicamente por 
+un piano. El momento fue catalogado por muchos como uno de los más emotivos 
+de la noche, mostrando la versatilidad vocal y el carisma escénico que han 
+convertido a Bad Bunny en un fenómeno global.</p>
+
+<p>Con estos cuatro nuevos Latin Grammy, Bad Bunny suma un total de 15 galardones 
+en su carrera, consolidándose como uno de los artistas más premiados en la 
+historia de estos reconocimientos. Su influencia trasciende la música, 
+impactando la moda, la cultura popular y abriendo puertas para las nuevas 
+generaciones de artistas urbanos que ven en su trayectoria un camino a seguir.</p>
+
+<h3>Premios obtenidos por Bad Bunny:</h3>
+<ul>
+<li>Mejor Álbum del Año</li>
+<li>Mejor Álbum de Música Urbana</li>
+<li>Mejor Canción Urbana</li>
+<li>Mejor Interpretación Reggaetón</li>
+</ul>', 
  '2023-11-20 21:00:00', 3),
 
 ('Vetusta Morla presenta “Cable a Tierra” en Madrid',
