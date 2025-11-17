@@ -533,6 +533,18 @@ paths:
       - Merchandising
   /noticias:
     get:
+      parameters:
+      - description: Ordenar las noticias. 'recientes' ordena por fecha descendente (por defecto), 'menos-influyentes' ordena noticias antiguas por popularidad ascendente
+        example: recientes
+        explode: true
+        in: query
+        name: orden
+        required: false
+        schema:
+          type: string
+          enum: [recientes, menos-influyentes]
+          default: recientes
+        style: form
       responses:
         "200":
           content:
@@ -543,6 +555,8 @@ paths:
                 contenidoHTML: <p>El esperado album Indie Vibes ya esta disponible.</p>
                 fecha: 2024-09-15
                 autor: 1
+                visualizaciones: 150
+                likes: 25
               schema:
                 items:
                   $ref: "#/components/schemas/Noticia"
@@ -572,6 +586,51 @@ paths:
         "400":
           description: Datos de entrada invalidos
       summary: Crear una nueva noticia
+      tags:
+      - Noticias
+  /noticias/{id}:
+    get:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                id: 1
+                titulo: Nuevo album Indie Vibes lanzado
+                contenidoHTML: <p>El esperado album Indie Vibes ya esta disponible.</p>
+                fecha: 2024-09-15
+                autor: 1
+              schema:
+                $ref: "#/components/schemas/Noticia"
+          description: Noticia encontrada
+        "404":
+          description: Noticia no encontrada
+      summary: Obtener una noticia especifica
+      tags:
+      - Noticias
+    delete:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "204":
+          description: Noticia eliminada correctamente
+        "404":
+          description: Noticia no encontrada
+      summary: Eliminar una noticia
       tags:
       - Noticias
 components:
@@ -732,6 +791,8 @@ components:
         titulo: Nuevo album Indie Vibes lanzado
         id: 1
         autor: 1
+        visualizaciones: 150
+        likes: 25
       properties:
         id:
           example: 1
@@ -748,6 +809,12 @@ components:
           type: string
         autor:
           example: 1
+          type: integer
+        visualizaciones:
+          example: 150
+          type: integer
+        likes:
+          example: 25
           type: integer
       required:
       - autor

@@ -10,7 +10,6 @@
 package openapi
 
 type Noticia struct {
-
 	Id int32 `json:"id,omitempty"`
 
 	Titulo string `json:"titulo"`

@@ -27,7 +27,7 @@ func (api *NoticiasAPI) NoticiasIdGet(c *gin.Context) {
 	noticiaID := c.Param("id")
 
 	consulta := `
-		SELECT id, titulo, contenidoHTML, fecha, autor
+		SELECT id, titulo, contenidoHTML, fecha, autor, visualizaciones, likes
 		FROM noticia
 		WHERE id = $1
 	`
@@ -103,15 +103,15 @@ func (api *NoticiasAPI) NoticiasGet(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No se encontraron noticias"})
 		return
 	}
-	
+
 	c.JSON(200, noticias)
 }
 
 // Post /noticias
-// Crear una nueva noticia 
+// Crear una nueva noticia
 func (api *NoticiasAPI) NoticiasPost(c *gin.Context) {
 	var noticia Noticia
-	
+
 	err := c.ShouldBindJSON(&noticia)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos de entrada inválidos: " + err.Error()})
@@ -129,7 +129,7 @@ func (api *NoticiasAPI) NoticiasPost(c *gin.Context) {
 		VALUES ($1, $2, $3, $4)
 		RETURNING id
 	`
-	
+
 	var id int
 	err = api.DB.QueryRow(
 		insercion,
@@ -145,7 +145,37 @@ func (api *NoticiasAPI) NoticiasPost(c *gin.Context) {
 	}
 
 	noticia.Id = int32(id)
-	
+
 	c.JSON(201, noticia)
 }
 
+// Delete /noticias/:id
+// Eliminar una noticia por su ID
+func (api *NoticiasAPI) NoticiasIdDelete(c *gin.Context) {
+	noticiaID := c.Param("id")
+
+	// Verificar que la noticia existe antes de intentar eliminarla
+	verificacion := `SELECT id FROM noticia WHERE id = $1`
+	var id int
+	err := api.DB.QueryRow(verificacion, noticiaID).Scan(&id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Noticia no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar la noticia: " + err.Error()})
+		return
+	}
+
+	// Eliminar la noticia
+	eliminacion := `DELETE FROM noticia WHERE id = $1`
+	_, err = api.DB.Exec(eliminacion, noticiaID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar la noticia: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}
