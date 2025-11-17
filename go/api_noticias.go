@@ -27,7 +27,7 @@ func (api *NoticiasAPI) NoticiasIdGet(c *gin.Context) {
 	noticiaID := c.Param("id")
 
 	consulta := `
-		SELECT id, titulo, contenidoHTML, fecha, autor, visualizaciones, likes
+		SELECT id, titulo, contenidoHTML, fecha, autor
 		FROM noticia
 		WHERE id = $1
 	`
