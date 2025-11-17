@@ -42,3 +42,5 @@ volumes:
 networks:
   contenido-network:
     driver: bridge
+    external: true
+    name: micro-servicios

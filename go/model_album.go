@@ -80,6 +80,45 @@ func GetAllAlbums(db *sql.DB) ([]Album, error) {
 	return albums, nil
 }
 
+// GetAlbumsByArtist devuelve los albums cuyo campo artista coincide con artistId.
+func GetAlbumsByArtist(db *sql.DB, artistId int32) ([]Album, error) {
+	rows, err := db.Query("SELECT id, nombre, duracion, urlimagen, fecha, genero, artista FROM album WHERE artista = $1", artistId)
+	if err != nil {
+		return nil, fmt.Errorf("error querying albums by artist: %w", err)
+	}
+	defer rows.Close()
+
+	var albums []Album
+	for rows.Next() {
+		var album Album
+		var dur sql.NullInt32
+		var generoID sql.NullInt32
+		if err := rows.Scan(&album.Id, &album.Nombre, &dur, &album.UrlImagen, &album.Fecha, &generoID, &album.Artista); err != nil {
+			return nil, fmt.Errorf("error scanning album: %w", err)
+		}
+		if dur.Valid {
+			album.Duracion = dur.Int32
+		} else {
+			album.Duracion = 0
+		}
+		if generoID.Valid {
+			var gNombre sql.NullString
+			if err := db.QueryRow("SELECT nombre FROM genero WHERE id=$1", generoID.Int32).Scan(&gNombre); err == nil {
+				album.Genero = Genero{Id: generoID.Int32, Nombre: gNombre.String}
+			} else {
+				album.Genero = Genero{Id: generoID.Int32}
+			}
+		}
+		albums = append(albums, album)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating albums: %w", err)
+	}
+
+	return albums, nil
+}
+
 func GetAlbum(db *sql.DB, id int32) (*Album, error) {
 	row := db.QueryRow("SELECT id, nombre, duracion, urlimagen, fecha, genero, artista FROM album WHERE id = $1", id)
 	var album Album

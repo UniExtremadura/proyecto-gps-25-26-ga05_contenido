@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,6 +25,26 @@ type AlbumesAPI struct {
 // Get /albums
 // Listar albumes con filtros opcionales
 func (api *AlbumesAPI) AlbumsGet(c *gin.Context) {
+	// Si se pasa el query param `artista`, filtrar por artista
+	artistaParam := c.Query("artista")
+	if artistaParam != "" {
+		v, err := strconv.Atoi(artistaParam)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "parámetro 'artista' inválido"})
+			return
+		}
+		albums, err := GetAlbumsByArtist(api.DB, int32(v))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "OK",
+			"albums": albums,
+		})
+		return
+	}
+
 	albums, err := GetAllAlbums(api.DB)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
