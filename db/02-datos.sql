@@ -6,12 +6,12 @@ INSERT INTO genero (nombre) VALUES
 ('Electrónica');
 
 
-INSERT INTO album (nombre, duracion, urlImagen, fecha, genero, artista) VALUES
-('Alpha', 2400, 'https://img.com/alpha.jpg', '2023-09-01', 1, 1),
-('AM', 2700, 'https://img.com/am.jpg', '2013-09-09', 2, 2),
-('Un Verano Sin Ti', 3300, 'https://img.com/verano.jpg', '2022-05-06', 3, 3),
-('Cable a Tierra', 2900, 'https://img.com/cable.jpg', '2021-10-29', 4, 4),
-('7', 2500, 'https://img.com/7.jpg', '2018-09-14', 5, 5);
+INSERT INTO album (nombre, duracion, urlImagen, fecha, genero, artista, precio) VALUES
+('Alpha', 2400, 'https://img.com/alpha.jpg', '2023-09-01', 1, 1,20.99),
+('AM', 2700, 'https://img.com/am.jpg', '2013-09-09', 2, 2,15.99),
+('Un Verano Sin Ti', 3300, 'https://img.com/verano.jpg', '2022-05-06', 3, 3,14.99),
+('Cable a Tierra', 2900, 'https://img.com/cable.jpg', '2021-10-29', 4, 4,9.99),
+('7', 2500, 'https://img.com/7.jpg', '2018-09-14', 5, 5,10);
 
 
 INSERT INTO cancion (nombre, urlImagen, duracion, album) VALUES
@@ -96,32 +96,3 @@ INSERT INTO noticia (titulo, contenidoHTML, fecha, autor) VALUES
  '<p>El DJ francés vuelve a colaborar con Sia en un nuevo éxito dance.</p>', 
  '2023-08-01 08:00:00', 1);
 
-
-INSERT INTO pedido (cliente,fecha,estado) VALUES
--- Pedidos del usuario 1 (Laura Sanchez)
-(1,'2024-10-02 18:00:55','entregado'), (1,'2025-11-02 21:00:00','pendiente'), (1,'2025-08-13 11:00:00','en curso'),
--- Pedidos del usuario 2 (Carlos Ruiz)
-(2,'2024-10-03 19:00:00','entregado'),
--- Pedidos del usuario 3 (Ana Lopez)
-(3,'2025-10-02 18:00:00','entregado'),
--- Pedidos del usuario 4 (Pablo Torres)
-(4,'2025-04-12 20:30:50','entregado'),
--- Pedidos del usuario 5 (Marta Gómez)
-(5,'2024-10-02 18:00:00','entregado');
-
-INSERT INTO pedido_item (pedido,merch,cantidad,precio_unitario) VALUES
--- Items del usuario 1
-    --Primer Pedido
-    (1,1,2,24.99), (1,2,1,34.99),
-    --Segundo Pedido
-    (2,4,1,29.99),
-    --Tercer Pedido
-    (3,5,3,9.99),
--- Items del usuario 2
-    (4,1,1,24.99),
--- Items del usuario 3
-    (5,5,1,9.99),
--- Items del usuario 4
-    (6,4,2,29.99),
--- Items del usuario 5
-    (7,5,3,9.99);

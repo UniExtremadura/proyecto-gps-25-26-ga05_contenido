@@ -33,7 +33,8 @@ func (api *PedidoAPI) Pago(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "OK",
-		"pedido": res,
+		"status":  "OK",
+		"mensaje": res.Mensaje,
+		"total":   res.Total,
 	})
 }
