@@ -10,9 +10,9 @@
 package main
 
 import (
-	"log"
 	"contenido/db"
 	sw "contenido/go"
+	"log"
 )
 
 func main() {
@@ -21,7 +21,9 @@ func main() {
 	routes := sw.ApiHandleFunctions{
 		MerchandisingAPI: sw.MerchandisingAPI{DB: db.DB},
 		PedidoAPI:        sw.PedidoAPI{DB: db.DB},
+		AlbumesAPI:       sw.AlbumesAPI{DB: db.DB},
 		SearchAPI:        sw.SearchAPI{DB: db.DB},
+		NoticiasAPI:	  sw.NoticiasAPI{DB: db.DB},
 	}
 
 	log.Printf("Servidor iniciado")

@@ -11,20 +11,21 @@ package openapi
 
 import (
 	"net/http"
-
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 // Route is the information for every URI.
 type Route struct {
 	// Name is the name of this Route.
-	Name		string
+	Name string
 	// Method is the string for the HTTP method. ex) GET, POST etc..
-	Method		string
+	Method string
 	// Pattern is the pattern of the URI.
-	Pattern	 	string
+	Pattern string
 	// HandlerFunc is the handler function of this route.
-	HandlerFunc	gin.HandlerFunc
+	HandlerFunc gin.HandlerFunc
 }
 
 // NewRouter returns a new router.
@@ -34,6 +35,15 @@ func NewRouter(handleFunctions ApiHandleFunctions) *gin.Engine {
 
 // NewRouter add routes to existing gin engine.
 func NewRouterWithGinEngine(router *gin.Engine, handleFunctions ApiHandleFunctions) *gin.Engine {
+	// Agregar el middleware CORS globalmente
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"}, // Permite solo el frontend local en el puerto 5173
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	for _, route := range getRoutes(handleFunctions) {
 		if route.HandlerFunc == nil {
 			route.HandlerFunc = DefaultHandleFunc
@@ -79,7 +89,7 @@ type ApiHandleFunctions struct {
 }
 
 func getRoutes(handleFunctions ApiHandleFunctions) []Route {
-	return []Route{ 
+	return []Route{
 		{
 			"AlbumsGet",
 			http.MethodGet,
@@ -207,6 +217,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			handleFunctions.MerchandisingAPI.MerchPost,
 		},
 		{
+			"NoticiasIdGet",
+			http.MethodGet,
+			"/noticias/:id",
+			handleFunctions.NoticiasAPI.NoticiasIdGet,
+		},
+		{
 			"NoticiasGet",
 			http.MethodGet,
 			"/noticias",
@@ -217,6 +233,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			http.MethodPost,
 			"/noticias",
 			handleFunctions.NoticiasAPI.NoticiasPost,
+		},
+		{
+			"NoticiasIdDelete",
+			http.MethodDelete,
+			"/noticias/:id",
+			handleFunctions.NoticiasAPI.NoticiasIdDelete,
 		},
 		{
 			"BusquedaGet",

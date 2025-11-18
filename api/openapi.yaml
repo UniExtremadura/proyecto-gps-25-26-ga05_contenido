@@ -574,6 +574,51 @@ paths:
       summary: Crear una nueva noticia
       tags:
       - Noticias
+  /noticias/{id}:
+    get:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                id: 1
+                titulo: Nuevo album Indie Vibes lanzado
+                contenidoHTML: <p>El esperado album Indie Vibes ya esta disponible.</p>
+                fecha: 2024-09-15
+                autor: 1
+              schema:
+                $ref: "#/components/schemas/Noticia"
+          description: Noticia encontrada
+        "404":
+          description: Noticia no encontrada
+      summary: Obtener una noticia especifica
+      tags:
+      - Noticias
+    delete:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "204":
+          description: Noticia eliminada correctamente
+        "404":
+          description: Noticia no encontrada
+      summary: Eliminar una noticia
+      tags:
+      - Noticias
 components:
   schemas:
     Album:

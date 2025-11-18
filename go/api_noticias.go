@@ -10,23 +10,172 @@
 package openapi
 
 import (
+	"database/sql"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
 )
 
 type NoticiasAPI struct {
+	DB *sql.DB
+}
+
+// Get /noticias/:id
+// Obtener una noticia específica por su ID
+func (api *NoticiasAPI) NoticiasIdGet(c *gin.Context) {
+	noticiaID := c.Param("id")
+
+	consulta := `
+		SELECT id, titulo, contenidoHTML, fecha, autor
+		FROM noticia
+		WHERE id = $1
+	`
+
+	var n Noticia
+	var fecha time.Time
+
+	err := api.DB.QueryRow(consulta, noticiaID).Scan(
+		&n.Id,
+		&n.Titulo,
+		&n.ContenidoHTML,
+		&fecha,
+		&n.Autor,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Noticia no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la noticia: " + err.Error()})
+		return
+	}
+
+	// Convertir la fecha a string
+	n.Fecha = fecha.Format("2006-01-02")
+
+	c.JSON(200, n)
 }
 
 // Get /noticias
-// Listar noticias recientes 
+// Listar noticias en orden descendiente
 func (api *NoticiasAPI) NoticiasGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	recientes := `
+		SELECT id, titulo, contenidoHTML, fecha, autor
+		FROM noticia
+		ORDER BY fecha DESC
+	`
+
+	filas, err := api.DB.Query(recientes)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las noticias"})
+		return
+	}
+	defer filas.Close()
+
+	var noticias []Noticia
+	for filas.Next() {
+		var n Noticia
+		var fecha time.Time
+
+		err := filas.Scan(
+			&n.Id,
+			&n.Titulo,
+			&n.ContenidoHTML,
+			&fecha,
+			&n.Autor,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al leer los datos de las noticias"})
+			return
+		}
+
+		// Hay que convertir la fecha de string a Time
+		n.Fecha = fecha.Format("2006-01-02")
+
+		noticias = append(noticias, n)
+	}
+
+	if len(noticias) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No se encontraron noticias"})
+		return
+	}
+
+	c.JSON(200, noticias)
 }
 
 // Post /noticias
-// Crear una nueva noticia 
+// Crear una nueva noticia
 func (api *NoticiasAPI) NoticiasPost(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	var noticia Noticia
+
+	err := c.ShouldBindJSON(&noticia)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos de entrada inválidos: " + err.Error()})
+		return
+	}
+
+	// Campos requeridos
+	if noticia.Titulo == "" || noticia.ContenidoHTML == "" || noticia.Autor == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan campos requeridos."})
+		return
+	}
+
+	insercion := `
+		INSERT INTO noticia (titulo, contenidoHTML, fecha, autor)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
+
+	var id int
+	err = api.DB.QueryRow(
+		insercion,
+		noticia.Titulo,
+		noticia.ContenidoHTML,
+		noticia.Fecha,
+		noticia.Autor,
+	).Scan(&id)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear la noticia: " + err.Error()})
+		return
+	}
+
+	noticia.Id = int32(id)
+
+	c.JSON(201, noticia)
 }
 
+// Delete /noticias/:id
+// Eliminar una noticia por su ID
+func (api *NoticiasAPI) NoticiasIdDelete(c *gin.Context) {
+	noticiaID := c.Param("id")
+
+	// Verificar que la noticia existe antes de intentar eliminarla
+	verificacion := `SELECT id FROM noticia WHERE id = $1`
+	var id int
+	err := api.DB.QueryRow(verificacion, noticiaID).Scan(&id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Noticia no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar la noticia: " + err.Error()})
+		return
+	}
+
+	// Eliminar la noticia
+	eliminacion := `DELETE FROM noticia WHERE id = $1`
+	_, err = api.DB.Exec(eliminacion, noticiaID)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar la noticia: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}
