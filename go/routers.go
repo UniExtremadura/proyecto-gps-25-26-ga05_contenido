@@ -11,6 +11,7 @@ package openapi
 
 import (
 	"net/http"
+	"contenido/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,6 +35,39 @@ func NewRouter(handleFunctions ApiHandleFunctions) *gin.Engine {
 
 // NewRouter add routes to existing gin engine.
 func NewRouterWithGinEngine(router *gin.Engine, handleFunctions ApiHandleFunctions) *gin.Engine {
+
+	// El middleware decide si aplicar autenticación basándose en el endpoint
+	router.Use(func(c *gin.Context) {
+		// Rutas públicas
+		rutasPublicas := map[string]bool {
+			"GET /albums": true,
+			"GET /albums/:id": true,
+			"GET /busqueda": true,
+			"GET /canciones": true,
+			"GET /canciones/album/:id": true,
+			"GET /canciones/:id": true,
+			"GET /canciones/:id/verAutores": true,
+			"GET /canciones/:id/archivos": true,
+			"GET /generos": true,
+			"GET /merch": true,
+			"GET /merch/:id": true,
+			"GET /noticias/:id": true,
+			"GET /noticias": true,
+		}
+
+		// Se formatea la clave de la ruta actual
+		claveRuta := c.Request.Method + " " + c.FullPath()
+
+		// Se comprueba si la ruta está entre las públicas
+		if !rutasPublicas[claveRuta] {
+			authMiddleware := middleware.Auth()
+			authMiddleware(c)
+		}
+
+		c.Next()
+	})
+
+	
 	for _, route := range getRoutes(handleFunctions) {
 		if route.HandlerFunc == nil {
 			route.HandlerFunc = DefaultHandleFunc
@@ -93,12 +127,6 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			handleFunctions.AlbumesAPI.AlbumsIdDelete,
 		},
 		{
-			"AlbumsIdDisminuirStockAlbumPatch",
-			http.MethodPatch,
-			"/albums/:id/disminuirStockAlbum",
-			handleFunctions.AlbumesAPI.AlbumsIdDisminuirStockAlbumPatch,
-		},
-		{
 			"AlbumsIdGet",
 			http.MethodGet,
 			"/albums/:id",
@@ -111,12 +139,6 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			handleFunctions.AlbumesAPI.AlbumsIdPatch,
 		},
 		{
-			"AlbumsIdRecargarStockAlbumPatch",
-			http.MethodPatch,
-			"/albums/:id/recargarStockAlbum",
-			handleFunctions.AlbumesAPI.AlbumsIdRecargarStockAlbumPatch,
-		},
-		{
 			"AlbumsPost",
 			http.MethodPost,
 			"/albums",
@@ -127,6 +149,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			http.MethodGet,
 			"/canciones",
 			handleFunctions.CancionesAPI.CancionesGet,
+		},
+		{
+			"CancionesAlbumIdGet",
+			http.MethodGet,
+			"/canciones/album/:id",
+			handleFunctions.CancionesAPI.CancionesAlbumIdGet,
 		},
 		{
 			"CancionesIdDelete",
@@ -157,6 +185,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			http.MethodPost,
 			"/canciones",
 			handleFunctions.CancionesAPI.CancionesPost,
+		},
+		{
+			"CancionesIdArchivoGet",
+			http.MethodGet,
+			"/canciones/:id/archivo",
+			handleFunctions.CancionesAPI.CancionesIdArchivoGet,
 		},
 		{
 			"GenerosGet",

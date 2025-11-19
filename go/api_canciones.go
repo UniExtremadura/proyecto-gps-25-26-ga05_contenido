@@ -10,51 +10,425 @@
 package openapi
 
 import (
+	"database/sql"
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
 type CancionesAPI struct {
+	DB *sql.DB
 }
 
 // Get /canciones
 // Listar todas las canciones 
 func (api *CancionesAPI) CancionesGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	query := `
+		SELECT id, nombre, duracion, album
+		FROM cancion
+		ORDER BY nombre
+	`
+
+	rows, err := api.DB.Query(query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las canciones: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+	
+	var canciones []Cancion
+	for rows.Next() {
+		var cancion Cancion
+		var duracion int
+
+		err := rows.Scan(
+			&cancion.Id,
+			&cancion.Nombre,
+			&duracion,
+			&cancion.Album,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al leer los datos de las canciones"})
+			return
+		}
+
+		// Convertir duración de segundos a formato MM:SS
+		cancion.Duracion = formatDuracion(duracion)
+
+		canciones = append(canciones, cancion)
+	}
+
+	if len(canciones) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "No se encontraron canciones"})
+		return
+	}
+
+	c.JSON(http.StatusOK, canciones)
+}
+
+// Get /canciones/album/:id
+// Obtener todas las canciones de un álbum específico
+func (api *CancionesAPI) CancionesAlbumIdGet(c *gin.Context) {
+	albumIdParam := c.Param("id")
+
+	// Verificar que el álbum existe
+	verificacionAlbum := `SELECT id FROM album WHERE id = $1`
+	var albumId int
+	err := api.DB.QueryRow(verificacionAlbum, albumIdParam).Scan(&albumId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Álbum no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar el álbum: " + err.Error()})
+		return
+	}
+
+	// Consultar las canciones del álbum
+	query := `
+		SELECT id, nombre, duracion, album
+		FROM cancion
+		WHERE album = $1
+		ORDER BY id
+	`
+
+	rows, err := api.DB.Query(query, albumIdParam)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las canciones del álbum: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+	
+	var canciones []Cancion
+	for rows.Next() {
+		var cancion Cancion
+		var duracion int
+
+		err := rows.Scan(
+			&cancion.Id,
+			&cancion.Nombre,
+			&duracion,
+			&cancion.Album,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al leer los datos de las canciones del álbum"})
+			return
+		}
+
+		// Convertir duración de segundos a formato MM:SS
+		cancion.Duracion = formatDuracion(duracion)
+
+		canciones = append(canciones, cancion)
+	}
+
+	if len(canciones) == 0 {
+		c.JSON(http.StatusOK, []Cancion{}) // Devolver array vacío en lugar de error
+		return
+	}
+
+	c.JSON(http.StatusOK, canciones)
 }
 
 // Delete /canciones/:id
 // Eliminar una cancion 
 func (api *CancionesAPI) CancionesIdDelete(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+
+	// Verificar que la canción existe antes de intentar eliminarla
+	verificacion := `SELECT id FROM cancion WHERE id = $1`
+	var id int
+	err := api.DB.QueryRow(verificacion, idParam).Scan(&id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Canción no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar la canción: " + err.Error()})
+		return
+	}
+
+	// Eliminar la canción (las relaciones en artista_cancion se eliminarán en cascada)
+	eliminacion := `DELETE FROM cancion WHERE id = $1`
+	_, err = api.DB.Exec(eliminacion, idParam)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar la canción: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
 }
 
 // Get /canciones/:id
 // Obtener detalles de una cancion 
 func (api *CancionesAPI) CancionesIdGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+
+	query := `
+		SELECT id, nombre, duracion, album
+		FROM cancion
+		WHERE id = $1
+	`
+
+	var cancion Cancion
+	var duracion int
+
+	err := api.DB.QueryRow(query, idParam).Scan(
+		&cancion.Id,
+		&cancion.Nombre,
+		&duracion,
+		&cancion.Album,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Canción no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la canción: " + err.Error()})
+		return
+	}
+
+	// Convertir duración de segundos a formato MM:SS
+	cancion.Duracion = formatDuracion(duracion)
+
+	c.JSON(http.StatusOK, cancion)
 }
 
 // Patch /canciones/:id
 // Actualizar datos de una cancion 
 func (api *CancionesAPI) CancionesIdPatch(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+	
+	var cancion Cancion
+	if err := c.ShouldBindJSON(&cancion); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos de entrada inválidos: " + err.Error()})
+		return
+	}
+
+	// Convertir duración de MM:SS a segundos
+	duracionSegundos, err := parseDuracion(cancion.Duracion)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de duración inválido. Use MM:SS"})
+		return
+	}
+
+	// Verificar que la canción existe
+	verificacion := `SELECT id FROM cancion WHERE id = $1`
+	var id int
+	err = api.DB.QueryRow(verificacion, idParam).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Canción no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar la canción: " + err.Error()})
+		return
+	}
+
+	// Actualizar la canción (sin archivo_audio en el RETURNING)
+	actualizacion := `
+		UPDATE cancion 
+		SET nombre = $1, duracion = $2, album = $3
+		WHERE id = $4
+		RETURNING id, nombre, duracion, album
+	`
+
+	var cancionActualizada Cancion
+	var duracionActualizada int
+
+	err = api.DB.QueryRow(
+		actualizacion,
+		cancion.Nombre,
+		duracionSegundos,
+		cancion.Album,
+		idParam,
+	).Scan(
+		&cancionActualizada.Id,
+		&cancionActualizada.Nombre,
+		&duracionActualizada,
+		&cancionActualizada.Album,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar la canción: " + err.Error()})
+		return
+	}
+
+	// Convertir duración de segundos a formato MM:SS
+	cancionActualizada.Duracion = formatDuracion(duracionActualizada)
+
+	c.JSON(http.StatusOK, cancionActualizada)
 }
 
 // Get /canciones/:id/verAutores
-// Obtener los artista de una cancion 
+// Obtener los artistas de una cancion 
 func (api *CancionesAPI) CancionesIdVerAutoresGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	idParam := c.Param("id")
+
+	// Verificar que la canción existe
+	verificacion := `SELECT id FROM cancion WHERE id = $1`
+	var id int
+	err := api.DB.QueryRow(verificacion, idParam).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Canción no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar la canción: " + err.Error()})
+		return
+	}
+
+	// Obtener los artistas de la canción
+	query := `
+		SELECT artista
+		FROM artista_cancion
+		WHERE cancion = $1
+		ORDER BY artista
+	`
+
+	rows, err := api.DB.Query(query, idParam)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los artistas: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var artistas []int32
+	for rows.Next() {
+		var artista int32
+		err := rows.Scan(&artista)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al leer los datos de los artistas"})
+			return
+		}
+		artistas = append(artistas, artista)
+	}
+
+	// Crear respuesta según el modelo VerAutoresCancion
+	respuesta := VerAutoresCancion{
+		IdCancion: int32(id),
+		Artistas:  artistas,
+	}
+
+	c.JSON(http.StatusOK, respuesta)
 }
 
 // Post /canciones
 // Crear una nueva cancion 
 func (api *CancionesAPI) CancionesPost(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	var cancion Cancion
+
+	if err := c.ShouldBindJSON(&cancion); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos de entrada inválidos: " + err.Error()})
+		return
+	}
+
+	// Validar campos requeridos
+	if cancion.Nombre == "" || cancion.Duracion == "" || cancion.Album == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan campos requeridos: nombre, duracion, album"})
+		return
+	}
+
+	// Convertir duración de MM:SS a segundos
+	duracionSegundos, err := parseDuracion(cancion.Duracion)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Formato de duración inválido. Use MM:SS"})
+		return
+	}
+
+	// Insertar nueva canción
+	insercion := `
+		INSERT INTO cancion (nombre, duracion, album, archivo_audio)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, nombre, duracion, album, archivo_audio
+	`
+
+	var nuevaCancion Cancion
+	var duracion int
+	var archivoAudio []byte
+
+	err = api.DB.QueryRow(
+		insercion,
+		cancion.Nombre,
+		duracionSegundos,
+		cancion.Album,
+		cancion.ArchivoAudio,
+	).Scan(
+		&nuevaCancion.Id,
+		&nuevaCancion.Nombre,
+		&duracion,
+		&nuevaCancion.Album,
+		&archivoAudio,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear la canción: " + err.Error()})
+		return
+	}
+
+	// Convertir duración de segundos a formato MM:SS
+	nuevaCancion.Duracion = formatDuracion(duracion)
+	nuevaCancion.ArchivoAudio = archivoAudio
+
+	c.JSON(http.StatusCreated, nuevaCancion)
 }
 
+// Get /canciones/:id/archivo
+// Obtener el archivo de audio de una canción
+func (api *CancionesAPI) CancionesIdArchivoGet(c *gin.Context) {
+	idParam := c.Param("id")
+
+	query := `
+		SELECT archivo_audio, nombre
+		FROM cancion
+		WHERE id = $1
+	`
+
+	var archivoAudio []byte
+	var nombre string
+
+	err := api.DB.QueryRow(query, idParam).Scan(&archivoAudio, &nombre)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Canción no encontrada"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el archivo de audio: " + err.Error()})
+		return
+	}
+
+	if archivoAudio == nil || len(archivoAudio) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Archivo de audio no disponible"})
+		return
+	}
+
+	// Configurar headers para la respuesta de audio
+	c.Header("Content-Type", "audio/mpeg")
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s.mp3\"", nombre))
+	c.Header("Content-Length", fmt.Sprintf("%d", len(archivoAudio)))
+	
+	// Enviar el archivo
+	c.Data(http.StatusOK, "audio/mpeg", archivoAudio)
+}
+
+// Función auxiliar para convertir segundos a formato MM:SS
+func formatDuracion(segundos int) string {
+	minutos := segundos / 60
+	segundosRestantes := segundos % 60
+	return fmt.Sprintf("%d:%02d", minutos, segundosRestantes)
+}
+
+// Función auxiliar para convertir formato MM:SS a segundos
+func parseDuracion(duracion string) (int, error) {
+	var minutos, segundos int
+	_, err := fmt.Sscanf(duracion, "%d:%d", &minutos, &segundos)
+	if err != nil {
+		return 0, err
+	}
+	return minutos*60 + segundos, nil
+}

@@ -9,16 +9,11 @@
 
 package openapi
 
-import (
-	"database/sql"
-	"fmt"
-)
-
 type Album struct {
 	Id        int32  `json:"id,omitempty"`
 	Nombre    string `json:"nombre"`
 	Duracion  int32  `json:"duracion"` // segundos
-	UrlImagen string `json:"urlImagen"`
+	Imagen    []byte `json:"imagen,omitempty"`
 	Fecha     string `json:"fecha"`
 	Genero    Genero `json:"genero"`
 	Artista   int32  `json:"artista"`
@@ -27,7 +22,7 @@ type Album struct {
 type CreateAlbumRequest struct {
 	Nombre    string `json:"nombre" binding:"required"`
 	Duracion  *int32 `json:"duracion"` // segundos (opcional)
-	UrlImagen string `json:"urlImagen"`
+	Imagen    []byte `json:"imagen,omitempty"`
 	Fecha     string `json:"fecha"`
 	Genero    int32  `json:"genero"`
 	Artista   int32  `json:"artista"`
@@ -36,238 +31,8 @@ type CreateAlbumRequest struct {
 type UpdateAlbumRequest struct {
 	Nombre    *string `json:"nombre"`
 	Duracion  *int32  `json:"duracion"`
-	UrlImagen *string `json:"urlImagen"`
+	Imagen    *[]byte `json:"imagen"`
 	Fecha     *string `json:"fecha"`
 	Genero    *int32  `json:"genero"`
 	Artista   *int32  `json:"artista"`
-}
-
-func GetAllAlbums(db *sql.DB) ([]Album, error) {
-	rows, err := db.Query("SELECT id, nombre, duracion, urlimagen, fecha, genero, artista FROM album")
-	if err != nil {
-		return nil, fmt.Errorf("error querying albums: %w", err)
-	}
-	defer rows.Close()
-
-	var albums []Album
-	for rows.Next() {
-		var album Album
-		var dur sql.NullInt32
-		var generoID sql.NullInt32
-		if err := rows.Scan(&album.Id, &album.Nombre, &dur, &album.UrlImagen, &album.Fecha, &generoID, &album.Artista); err != nil {
-			return nil, fmt.Errorf("error scanning album: %w", err)
-		}
-		if dur.Valid {
-			album.Duracion = dur.Int32
-		} else {
-			album.Duracion = 0
-		}
-		if generoID.Valid {
-			var gNombre sql.NullString
-			if err := db.QueryRow("SELECT nombre FROM genero WHERE id=$1", generoID.Int32).Scan(&gNombre); err == nil {
-				album.Genero = Genero{Id: generoID.Int32, Nombre: gNombre.String}
-			} else {
-				album.Genero = Genero{Id: generoID.Int32}
-			}
-		}
-		albums = append(albums, album)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating albums: %w", err)
-	}
-
-	return albums, nil
-}
-
-// GetAlbumsByArtist devuelve los albums cuyo campo artista coincide con artistId.
-func GetAlbumsByArtist(db *sql.DB, artistId int32) ([]Album, error) {
-	rows, err := db.Query("SELECT id, nombre, duracion, urlimagen, fecha, genero, artista FROM album WHERE artista = $1", artistId)
-	if err != nil {
-		return nil, fmt.Errorf("error querying albums by artist: %w", err)
-	}
-	defer rows.Close()
-
-	var albums []Album
-	for rows.Next() {
-		var album Album
-		var dur sql.NullInt32
-		var generoID sql.NullInt32
-		if err := rows.Scan(&album.Id, &album.Nombre, &dur, &album.UrlImagen, &album.Fecha, &generoID, &album.Artista); err != nil {
-			return nil, fmt.Errorf("error scanning album: %w", err)
-		}
-		if dur.Valid {
-			album.Duracion = dur.Int32
-		} else {
-			album.Duracion = 0
-		}
-		if generoID.Valid {
-			var gNombre sql.NullString
-			if err := db.QueryRow("SELECT nombre FROM genero WHERE id=$1", generoID.Int32).Scan(&gNombre); err == nil {
-				album.Genero = Genero{Id: generoID.Int32, Nombre: gNombre.String}
-			} else {
-				album.Genero = Genero{Id: generoID.Int32}
-			}
-		}
-		albums = append(albums, album)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating albums: %w", err)
-	}
-
-	return albums, nil
-}
-
-func GetAlbum(db *sql.DB, id int32) (*Album, error) {
-	row := db.QueryRow("SELECT id, nombre, duracion, urlimagen, fecha, genero, artista FROM album WHERE id = $1", id)
-	var album Album
-	var dur sql.NullInt32
-	var generoID sql.NullInt32
-	if err := row.Scan(&album.Id, &album.Nombre, &dur, &album.UrlImagen, &album.Fecha, &generoID, &album.Artista); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, sql.ErrNoRows // Album no encontrado
-		}
-		return nil, fmt.Errorf("error scanning album: %w", err)
-	}
-	if dur.Valid {
-		album.Duracion = dur.Int32
-	}
-	if generoID.Valid {
-		var gNombre sql.NullString
-		if err := db.QueryRow("SELECT nombre FROM genero WHERE id=$1", generoID.Int32).Scan(&gNombre); err == nil {
-			album.Genero = Genero{Id: generoID.Int32, Nombre: gNombre.String}
-		} else {
-			album.Genero = Genero{Id: generoID.Int32}
-		}
-	}
-	return &album, nil
-}
-
-func DeleteAlbum(db *sql.DB, id int32) error {
-	result, err := db.Exec("DELETE FROM album WHERE id = $1", id)
-	if err != nil {
-		return fmt.Errorf("error deleting album: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error getting rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("album not found")
-	}
-	return nil
-}
-
-func (u *UpdateAlbumRequest) UpdateAlbum(db *sql.DB, id int32) (*Album, error) {
-	query := "UPDATE album SET"
-	params := []interface{}{}
-	i := 1
-
-	if u.Nombre != nil {
-		query += fmt.Sprintf(" nombre=$%d,", i)
-		params = append(params, *u.Nombre)
-		i++
-	}
-	if u.Duracion != nil {
-		query += fmt.Sprintf(" duracion=$%d,", i)
-		params = append(params, *u.Duracion)
-		i++
-	}
-	if u.UrlImagen != nil {
-		query += fmt.Sprintf(" urlimagen=$%d,", i)
-		params = append(params, *u.UrlImagen)
-		i++
-	}
-	if u.Fecha != nil {
-		query += fmt.Sprintf(" fecha=$%d,", i)
-		params = append(params, *u.Fecha)
-		i++
-	}
-	if u.Genero != nil {
-		query += fmt.Sprintf(" genero=$%d,", i)
-		params = append(params, *u.Genero)
-		i++
-	}
-	if u.Artista != nil {
-		query += fmt.Sprintf(" artista=$%d,", i)
-		params = append(params, *u.Artista)
-		i++
-	}
-
-	if len(params) == 0 {
-		return nil, fmt.Errorf("no se introducen campos para actualizar")
-	}
-
-	query = query[:len(query)-1] + fmt.Sprintf(" WHERE id=$%d RETURNING id, nombre, duracion, urlimagen, fecha, genero, artista", i)
-	params = append(params, id)
-
-	var updated Album
-	var dur sql.NullInt32
-	var generoID sql.NullInt32
-	err := db.QueryRow(query, params...).Scan(&updated.Id, &updated.Nombre, &dur, &updated.UrlImagen, &updated.Fecha, &generoID, &updated.Artista)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, sql.ErrNoRows
-		}
-		return nil, err
-	}
-	if dur.Valid {
-		updated.Duracion = dur.Int32
-	}
-	if generoID.Valid {
-		var gNombre sql.NullString
-		if err := db.QueryRow("SELECT nombre FROM genero WHERE id=$1", generoID.Int32).Scan(&gNombre); err == nil {
-			updated.Genero = Genero{Id: generoID.Int32, Nombre: gNombre.String}
-		} else {
-			updated.Genero = Genero{Id: generoID.Int32}
-		}
-	}
-	return &updated, nil
-}
-
-func (a *CreateAlbumRequest) CreateAlbum(db *sql.DB) (*Album, error) {
-	var nuevo Album
-	query := `
-		INSERT INTO album (nombre, duracion, urlimagen, fecha, genero, artista)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, nombre, duracion, urlimagen, fecha, genero, artista
-	`
-	var durVal sql.NullInt32
-	if a.Duracion != nil {
-		durVal.Int32 = *a.Duracion
-		durVal.Valid = true
-	}
-	var generoVal sql.NullInt32
-	if a.Genero != 0 {
-		generoVal.Int32 = a.Genero
-		generoVal.Valid = true
-	}
-	var artistaVal sql.NullInt32
-	if a.Artista != 0 {
-		artistaVal.Int32 = a.Artista
-		artistaVal.Valid = true
-	}
-
-	var durRes sql.NullInt32
-	var generoRes sql.NullInt32
-	err := db.QueryRow(query,
-		a.Nombre, durVal.Int32, a.UrlImagen, a.Fecha, generoVal.Int32, artistaVal.Int32,
-	).Scan(&nuevo.Id, &nuevo.Nombre, &durRes, &nuevo.UrlImagen, &nuevo.Fecha, &generoRes, &nuevo.Artista)
-	if err != nil {
-		return nil, fmt.Errorf("error creating album: %w", err)
-	}
-	if durRes.Valid {
-		nuevo.Duracion = durRes.Int32
-	}
-	if generoRes.Valid {
-		var gNombre sql.NullString
-		if err := db.QueryRow("SELECT nombre FROM genero WHERE id = $1", generoRes.Int32).Scan(&gNombre); err == nil {
-			nuevo.Genero = Genero{Id: generoRes.Int32, Nombre: gNombre.String}
-		} else {
-			nuevo.Genero = Genero{Id: generoRes.Int32}
-		}
-	}
-
-	return &nuevo, nil
 }

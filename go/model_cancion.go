@@ -10,14 +10,9 @@
 package openapi
 
 type Cancion struct {
-
-	Id int32 `json:"id,omitempty"`
-
-	Nombre string `json:"nombre"`
-
-	Duracion string `json:"duracion"`
-
-	UrlImagen string `json:"urlImagen"`
-
-	Album int32 `json:"album"`
+	Id          int32  `json:"id,omitempty"`
+	Nombre      string `json:"nombre"`
+	Duracion    string `json:"duracion"`
+	Album       int32  `json:"album"`
+	ArchivoAudio []byte `json:"archivoAudio,omitempty"`
 }

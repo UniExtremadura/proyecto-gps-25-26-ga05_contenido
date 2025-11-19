@@ -22,8 +22,10 @@ func main() {
 		MerchandisingAPI: sw.MerchandisingAPI{DB: db.DB},
 		PedidoAPI:        sw.PedidoAPI{DB: db.DB},
 		AlbumesAPI:       sw.AlbumesAPI{DB: db.DB},
+		CancionesAPI:     sw.CancionesAPI{DB: db.DB},
 		SearchAPI:        sw.SearchAPI{DB: db.DB},
 		NoticiasAPI:	  sw.NoticiasAPI{DB: db.DB},
+		GenerosAPI:       sw.GenerosAPI{DB: db.DB},
 	}
 
 	log.Printf("Servidor iniciado")

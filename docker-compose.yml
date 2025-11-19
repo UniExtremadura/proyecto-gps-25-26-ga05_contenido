@@ -12,6 +12,7 @@ services:
     volumes:
       - contenido_data:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d
+      - ./assets:/tmp/assets
     networks:
       - contenido-network
 
@@ -29,6 +30,7 @@ services:
       DB_NAME: contenido_db
       DB_USER: user
       DB_PASSWORD: 12345
+      JWT_SECRET_KEY: 12345
       GIN_MODE: debug
     volumes:
       - .:/app
