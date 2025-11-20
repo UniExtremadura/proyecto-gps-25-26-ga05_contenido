@@ -17,6 +17,7 @@ type Album struct {
 	Fecha     string `json:"fecha"`
 	Genero    Genero `json:"genero"`
 	Artista   int32  `json:"artista"`
+	Precio    float32 `json:"precio"`
 }
 
 type CreateAlbumRequest struct {
@@ -26,6 +27,7 @@ type CreateAlbumRequest struct {
 	Fecha     string `json:"fecha"`
 	Genero    int32  `json:"genero"`
 	Artista   int32  `json:"artista"`
+	Precio    float32 `json:"precio" binding:"required"`
 }
 
 type UpdateAlbumRequest struct {
@@ -35,4 +37,5 @@ type UpdateAlbumRequest struct {
 	Fecha     *string `json:"fecha"`
 	Genero    *int32  `json:"genero"`
 	Artista   *int32  `json:"artista"`
+	Precio    *float32 `json:"precio"`
 }

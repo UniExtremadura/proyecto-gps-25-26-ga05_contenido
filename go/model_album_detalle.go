@@ -25,5 +25,7 @@ type AlbumDetalle struct {
 
 	Artista int32 `json:"artista"`
 
+	Precio    float32 `json:"precio"`
+
 	Canciones []Cancion `json:"canciones,omitempty"`
 }

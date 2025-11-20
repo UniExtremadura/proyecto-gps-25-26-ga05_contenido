@@ -8,22 +8,22 @@ INSERT INTO genero (nombre) VALUES
 ('Electrónica');
 
 -- Insertar álbumes con imágenes de ejemplo
-INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista) VALUES
+INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista, precio) VALUES
 ('Alpha', 2400, 
  pg_read_binary_file('/tmp/assets/album_images/alpha.jpg')::bytea, 
- '2023-09-01', 1, 1),
+ '2023-09-01', 1, 1, 12.99),
 ('AM', 2700, 
  pg_read_binary_file('/tmp/assets/album_images/am.jpg')::bytea, 
- '2013-09-09', 2, 2),
+ '2013-09-09', 2, 2, 14.99),
 ('Un Verano Sin Ti', 3300, 
  pg_read_binary_file('/tmp/assets/album_images/un_verano_sin_ti.jpg')::bytea, 
- '2022-05-06', 3, 3),
+ '2022-05-06', 3, 3, 11.99),
 ('Cable a Tierra', 2900, 
  pg_read_binary_file('/tmp/assets/album_images/cable_a_tierra.jpg')::bytea, 
- '2021-10-29', 4, 4),
+ '2021-10-29', 4, 4, 13.99),
 ('7', 2500, 
  pg_read_binary_file('/tmp/assets/album_images/7.jpg')::bytea, 
- '2018-09-14', 5, 5);
+ '2018-09-14', 5, 5, 10.99);
 
 INSERT INTO cancion (nombre, duracion, album, archivo_audio) VALUES
 -- AITANA – Alpha

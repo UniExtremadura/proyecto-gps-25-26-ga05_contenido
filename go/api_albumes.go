@@ -33,7 +33,7 @@ func (api *AlbumesAPI) AlbumsGet(c *gin.Context) {
 	}
 
 	query := `
-		SELECT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, g.nombre as genero_nombre
+		SELECT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, a.precio, g.nombre as genero_nombre
 		FROM album a
 		LEFT JOIN genero g ON a.genero = g.id
 		ORDER BY a.nombre
@@ -52,6 +52,7 @@ func (api *AlbumesAPI) AlbumsGet(c *gin.Context) {
 		var duracion sql.NullInt32
 		var generoID sql.NullInt32
 		var generoNombre sql.NullString
+		var precio sql.NullFloat64
 
 		err := rows.Scan(
 			&album.Id,
@@ -61,6 +62,7 @@ func (api *AlbumesAPI) AlbumsGet(c *gin.Context) {
 			&album.Fecha,
 			&generoID,
 			&album.Artista,
+			&precio,
 			&generoNombre,
 		)
 
@@ -71,6 +73,10 @@ func (api *AlbumesAPI) AlbumsGet(c *gin.Context) {
 
 		if duracion.Valid {
 			album.Duracion = duracion.Int32
+		}
+
+		if precio.Valid {
+			album.Precio = float32(precio.Float64)
 		}
 
 		if generoID.Valid {
@@ -97,7 +103,7 @@ func (api *AlbumesAPI) AlbumsIdGet(c *gin.Context) {
 	idParam := c.Param("id")
 
 	query := `
-		SELECT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, g.nombre as genero_nombre
+		SELECT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, a.precio, g.nombre as genero_nombre
 		FROM album a
 		LEFT JOIN genero g ON a.genero = g.id
 		WHERE a.id = $1
@@ -107,6 +113,7 @@ func (api *AlbumesAPI) AlbumsIdGet(c *gin.Context) {
 	var duracion sql.NullInt32
 	var generoID sql.NullInt32
 	var generoNombre sql.NullString
+	var precio sql.NullFloat64
 
 	err := api.DB.QueryRow(query, idParam).Scan(
 		&album.Id,
@@ -116,6 +123,7 @@ func (api *AlbumesAPI) AlbumsIdGet(c *gin.Context) {
 		&album.Fecha,
 		&generoID,
 		&album.Artista,
+		&precio,
 		&generoNombre,
 	)
 
@@ -130,6 +138,10 @@ func (api *AlbumesAPI) AlbumsIdGet(c *gin.Context) {
 
 	if duracion.Valid {
 		album.Duracion = duracion.Int32
+	}
+
+	if precio.Valid {
+		album.Precio = float32(precio.Float64)
 	}
 
 	if generoID.Valid {
@@ -153,21 +165,22 @@ func (api *AlbumesAPI) AlbumsPost(c *gin.Context) {
 	}
 
 	// Validar campos requeridos
-	if req.Nombre == "" || req.Artista == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan campos requeridos: nombre, artista"})
+	if req.Nombre == "" || req.Artista == 0 || req.Precio <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Faltan campos requeridos: nombre, artista, precio (debe ser mayor a 0)"})
 		return
 	}
 
 	// Insertar nuevo álbum
 	query := `
-		INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, nombre, duracion, imagen, fecha, genero, artista
+		INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista, precio)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, nombre, duracion, imagen, fecha, genero, artista, precio
 	`
 
 	var nuevoAlbum Album
 	var duracion sql.NullInt32
 	var generoID sql.NullInt32
+	var precio sql.NullFloat64
 
 	err := api.DB.QueryRow(
 		query,
@@ -177,6 +190,7 @@ func (api *AlbumesAPI) AlbumsPost(c *gin.Context) {
 		req.Fecha,
 		req.Genero,
 		req.Artista,
+		req.Precio,
 	).Scan(
 		&nuevoAlbum.Id,
 		&nuevoAlbum.Nombre,
@@ -185,6 +199,7 @@ func (api *AlbumesAPI) AlbumsPost(c *gin.Context) {
 		&nuevoAlbum.Fecha,
 		&generoID,
 		&nuevoAlbum.Artista,
+		&precio,
 	)
 
 	if err != nil {
@@ -194,6 +209,10 @@ func (api *AlbumesAPI) AlbumsPost(c *gin.Context) {
 
 	if duracion.Valid {
 		nuevoAlbum.Duracion = duracion.Int32
+	}
+
+	if precio.Valid {
+		nuevoAlbum.Precio = float32(precio.Float64)
 	}
 
 	if generoID.Valid {
@@ -269,18 +288,24 @@ func (api *AlbumesAPI) AlbumsIdPatch(c *gin.Context) {
 		params = append(params, *req.Artista)
 		i++
 	}
+	if req.Precio != nil {
+		query += fmt.Sprintf(" precio=$%d,", i)
+		params = append(params, *req.Precio)
+		i++
+	}
 
 	if len(params) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No se proporcionaron campos para actualizar"})
 		return
 	}
 
-	query = query[:len(query)-1] + fmt.Sprintf(" WHERE id=$%d RETURNING id, nombre, duracion, imagen, fecha, genero, artista", i)
+	query = query[:len(query)-1] + fmt.Sprintf(" WHERE id=$%d RETURNING id, nombre, duracion, imagen, fecha, genero, artista, precio", i)
 	params = append(params, idParam)
 
 	var albumActualizado Album
 	var duracion sql.NullInt32
 	var generoID sql.NullInt32
+	var precio sql.NullFloat64
 
 	err = api.DB.QueryRow(query, params...).Scan(
 		&albumActualizado.Id,
@@ -290,6 +315,7 @@ func (api *AlbumesAPI) AlbumsIdPatch(c *gin.Context) {
 		&albumActualizado.Fecha,
 		&generoID,
 		&albumActualizado.Artista,
+		&precio,
 	)
 
 	if err != nil {
@@ -299,6 +325,10 @@ func (api *AlbumesAPI) AlbumsIdPatch(c *gin.Context) {
 
 	if duracion.Valid {
 		albumActualizado.Duracion = duracion.Int32
+	}
+
+	if precio.Valid {
+		albumActualizado.Precio = float32(precio.Float64)
 	}
 
 	if generoID.Valid {
@@ -354,7 +384,7 @@ func (api *AlbumesAPI) getAlbumsByArtist(c *gin.Context, artistaParam string) {
 	}
 
 	query := `
-		SELECT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, g.nombre as genero_nombre
+		SELECT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, a.precio, g.nombre as genero_nombre
 		FROM album a
 		LEFT JOIN genero g ON a.genero = g.id
 		WHERE a.artista = $1
@@ -374,6 +404,7 @@ func (api *AlbumesAPI) getAlbumsByArtist(c *gin.Context, artistaParam string) {
 		var duracion sql.NullInt32
 		var generoID sql.NullInt32
 		var generoNombre sql.NullString
+		var precio sql.NullFloat64
 
 		err := rows.Scan(
 			&album.Id,
@@ -383,6 +414,7 @@ func (api *AlbumesAPI) getAlbumsByArtist(c *gin.Context, artistaParam string) {
 			&album.Fecha,
 			&generoID,
 			&album.Artista,
+			&precio,
 			&generoNombre,
 		)
 
@@ -393,6 +425,10 @@ func (api *AlbumesAPI) getAlbumsByArtist(c *gin.Context, artistaParam string) {
 
 		if duracion.Valid {
 			album.Duracion = duracion.Int32
+		}
+
+		if precio.Valid {
+			album.Precio = float32(precio.Float64)
 		}
 
 		if generoID.Valid {
