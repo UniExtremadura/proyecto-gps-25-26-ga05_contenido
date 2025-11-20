@@ -7,6 +7,13 @@ INSERT INTO genero (nombre) VALUES
 ('Indie'),
 ('Electrónica');
 
+-- Insertar formatos disponibles
+INSERT INTO formato (nombre) VALUES 
+('Digital'),
+('Vinilo'),
+('CD'),
+('Cassette');
+
 -- Insertar álbumes con imágenes de ejemplo
 INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista, precio) VALUES
 ('Alpha', 2400, 
@@ -24,6 +31,23 @@ INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista, precio) VAL
 ('7', 2500, 
  pg_read_binary_file('/tmp/assets/album_images/7.jpg')::bytea, 
  '2018-09-14', 5, 5, 10.99);
+
+-- Asignar formatos disponibles para cada álbum
+INSERT INTO album_formato (album, formato) VALUES
+-- Alpha - disponible en todos los formatos
+(1, 1), (1, 2), (1, 3), (1, 4),
+
+-- AM - disponible en Digital, Vinilo y CD
+(2, 1), (2, 2), (2, 3),
+
+-- Un Verano Sin Ti - disponible en Digital y Vinilo
+(3, 1), (3, 2),
+
+-- Cable a Tierra - disponible en Digital, CD y Cassette
+(4, 1), (4, 3), (4, 4),
+
+-- 7 - disponible solo en Digital y Vinilo
+(5, 1), (5, 2);
 
 INSERT INTO cancion (nombre, duracion, album, archivo_audio) VALUES
 -- AITANA – Alpha
@@ -173,34 +197,3 @@ generaciones de artistas urbanos que ven en su trayectoria un camino a seguir.</
 ('David Guetta lanza nuevo single con Sia',
  '<p>El DJ francés vuelve a colaborar con Sia en un nuevo éxito dance.</p>', 
  '2023-08-01 08:00:00', 1);
-
--- Pedidos
-INSERT INTO pedido (cliente,fecha,estado) VALUES
--- Pedidos del usuario 1 (Laura Sanchez)
-(1,'2024-10-02 18:00:55','entregado'), (1,'2025-11-02 21:00:00','pendiente'), (1,'2025-08-13 11:00:00','en curso'),
--- Pedidos del usuario 2 (Carlos Ruiz)
-(2,'2024-10-03 19:00:00','entregado'),
--- Pedidos del usuario 3 (Ana Lopez)
-(3,'2025-10-02 18:00:00','entregado'),
--- Pedidos del usuario 4 (Pablo Torres)
-(4,'2025-04-12 20:30:50','entregado'),
--- Pedidos del usuario 5 (Marta Gómez)
-(5,'2024-10-02 18:00:00','entregado');
-
--- Items de pedidos
-INSERT INTO pedido_item (pedido,merch,cantidad,precio_unitario) VALUES
--- Items del usuario 1
-    --Primer Pedido
-    (1,1,2,24.99), (1,2,1,34.99),
-    --Segundo Pedido
-    (2,4,1,29.99),
-    --Tercer Pedido
-    (3,5,3,9.99),
--- Items del usuario 2
-    (4,1,1,24.99),
--- Items del usuario 3
-    (5,5,1,9.99),
--- Items del usuario 4
-    (6,4,2,29.99),
--- Items del usuario 5
-    (7,5,3,9.99);
