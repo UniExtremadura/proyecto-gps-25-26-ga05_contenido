@@ -320,7 +320,7 @@ func (api *SearchAPI) BuscarMerch(q string, pagina, porPagina int) ([]Merch, int
         return nil, 0, err
     }
     offset := (pagina - 1) * porPagina
-    selQuery := fmt.Sprintf("SELECT id,nombre,precio,urlimagen,artista,stock FROM merchandising %s ORDER BY id LIMIT $%d OFFSET $%d", whereClause, len(args)+1, len(args)+2)
+    selQuery := fmt.Sprintf("SELECT id,nombre,precio,imagen,artista,stock FROM merchandising %s ORDER BY id LIMIT $%d OFFSET $%d", whereClause, len(args)+1, len(args)+2)
     args = append(args, porPagina, offset)
     filas, err := api.DB.Query(selQuery, args...)
     if err != nil {
@@ -330,7 +330,7 @@ func (api *SearchAPI) BuscarMerch(q string, pagina, porPagina int) ([]Merch, int
     var items []Merch
     for filas.Next() {
         var m Merch
-        if err := filas.Scan(&m.Id, &m.Nombre, &m.Precio, &m.UrlImagen, &m.Artista, &m.Stock); err != nil {
+        if err := filas.Scan(&m.Id, &m.Nombre, &m.Precio, &m.Imagen, &m.Artista, &m.Stock); err != nil {
             return nil, total, err
         }
         
