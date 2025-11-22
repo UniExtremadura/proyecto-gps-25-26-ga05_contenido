@@ -17,13 +17,15 @@ type AlbumDetalle struct {
 
 	Duracion string `json:"duracion"`
 
-	UrlImagen string `json:"urlImagen"`
-
 	Fecha string `json:"fecha"`
 
 	Genero Genero `json:"genero"`
 
 	Artista int32 `json:"artista"`
+
+	NombreArtista string   `json:"nombreArtista"`
+
+	Precio    float32 `json:"precio"`
 
 	Canciones []Cancion `json:"canciones,omitempty"`
 }

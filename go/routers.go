@@ -12,6 +12,7 @@ package openapi
 import (
 	"net/http"
 	"github.com/gin-contrib/cors"
+	"contenido/middleware"
 	"github.com/gin-gonic/gin"
 	"time"
 )
@@ -38,12 +39,46 @@ func NewRouterWithGinEngine(router *gin.Engine, handleFunctions ApiHandleFunctio
 	// Agregar el middleware CORS globalmente
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"}, // Permite solo el frontend local en el puerto 5173
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+
+	// El middleware decide si aplicar autenticación basándose en el endpoint
+	router.Use(func(c *gin.Context) {
+		// Rutas públicas
+		rutasPublicas := map[string]bool {
+			"GET /albums": true,
+			"GET /albums/:id": true,
+			"GET /albums/:id/detalle": true,
+			"GET /albums/:id/imagen": true,
+			"GET /busqueda": true,
+			"GET /canciones": true,
+			"GET /canciones/album/:id": true,
+			"GET /canciones/:id": true,
+			"GET /canciones/:id/verAutores": true,
+			"GET /canciones/:id/archivo": true,
+			"GET /generos": true,
+			"GET /merch": true,
+			"GET /merch/:id": true,
+			"GET /noticias/:id": true,
+			"GET /noticias": true,
+		}
+
+		// Se formatea la clave de la ruta actual
+		claveRuta := c.Request.Method + " " + c.FullPath()
+
+		// Se comprueba si la ruta está entre las públicas
+		if !rutasPublicas[claveRuta] {
+			authMiddleware := middleware.Auth()
+			authMiddleware(c)
+		}
+
+		c.Next()
+	})
+
 	for _, route := range getRoutes(handleFunctions) {
 		if route.HandlerFunc == nil {
 			route.HandlerFunc = DefaultHandleFunc
@@ -103,28 +138,28 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			handleFunctions.AlbumesAPI.AlbumsIdDelete,
 		},
 		{
-			"AlbumsIdDisminuirStockAlbumPatch",
-			http.MethodPatch,
-			"/albums/:id/disminuirStockAlbum",
-			handleFunctions.AlbumesAPI.AlbumsIdDisminuirStockAlbumPatch,
-		},
-		{
 			"AlbumsIdGet",
 			http.MethodGet,
 			"/albums/:id",
 			handleFunctions.AlbumesAPI.AlbumsIdGet,
 		},
 		{
+			"AlbumsIdDetalleGet",
+			http.MethodGet,
+			"/albums/:id/detalle",
+			handleFunctions.AlbumesAPI.AlbumsIdDetalleGet,
+		},
+		{
+			"AlbumsIdImagenGet",
+			http.MethodGet,
+			"/albums/:id/imagen",
+			handleFunctions.AlbumesAPI.AlbumsIdImagenGet,
+		},
+		{
 			"AlbumsIdPatch",
 			http.MethodPatch,
 			"/albums/:id",
 			handleFunctions.AlbumesAPI.AlbumsIdPatch,
-		},
-		{
-			"AlbumsIdRecargarStockAlbumPatch",
-			http.MethodPatch,
-			"/albums/:id/recargarStockAlbum",
-			handleFunctions.AlbumesAPI.AlbumsIdRecargarStockAlbumPatch,
 		},
 		{
 			"AlbumsPost",
@@ -137,6 +172,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			http.MethodGet,
 			"/canciones",
 			handleFunctions.CancionesAPI.CancionesGet,
+		},
+		{
+			"CancionesAlbumIdGet",
+			http.MethodGet,
+			"/canciones/album/:id",
+			handleFunctions.CancionesAPI.CancionesAlbumIdGet,
 		},
 		{
 			"CancionesIdDelete",
@@ -167,6 +208,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			http.MethodPost,
 			"/canciones",
 			handleFunctions.CancionesAPI.CancionesPost,
+		},
+		{
+			"CancionesIdArchivoGet",
+			http.MethodGet,
+			"/canciones/:id/archivo",
+			handleFunctions.CancionesAPI.CancionesIdArchivoGet,
 		},
 		{
 			"GenerosGet",

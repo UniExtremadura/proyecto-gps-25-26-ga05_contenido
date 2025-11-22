@@ -10,16 +10,55 @@
 package openapi
 
 import (
+	"database/sql"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
 type GenerosAPI struct {
+	DB *sql.DB
 }
 
 // Get /generos
 // Listar todos los generos musicales 
 func (api *GenerosAPI) GenerosGet(c *gin.Context) {
-	// Your handler implementation
-	c.JSON(200, gin.H{"status": "OK"})
+	query := `
+		SELECT id, nombre
+		FROM genero
+		ORDER BY nombre
+	`
+
+	rows, err := api.DB.Query(query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los géneros: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var generos []Genero
+	for rows.Next() {
+		var genero Genero
+
+		err := rows.Scan(
+			&genero.Id,
+			&genero.Nombre,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al leer los datos de los géneros"})
+			return
+		}
+
+		generos = append(generos, genero)
+	}
+	
+	if(len(generos) == 0) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "No se encontraron géneros"})
+		return
+
+	}
+	
+	c.JSON(http.StatusOK, generos)
 }
 
