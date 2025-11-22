@@ -28,6 +28,7 @@ type CreateAlbumRequest struct {
 	Genero    int32  `json:"genero"`
 	Artista   int32  `json:"artista"`
 	Precio    float32 `json:"precio" binding:"required"`
+	Formato   *int32  `json:"formato,omitempty"`
 }
 
 type UpdateAlbumRequest struct {

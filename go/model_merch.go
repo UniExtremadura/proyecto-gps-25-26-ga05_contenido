@@ -11,6 +11,7 @@ type Merch struct {
     Precio  float32 `json:"precio"`
     Imagen  []byte  `json:"imagen,omitempty"`
     Artista int32   `json:"artista"`
+    NombreArtista string  `json:"nombre_artista,omitempty"`
     Stock   int32   `json:"stock"`
 }
 

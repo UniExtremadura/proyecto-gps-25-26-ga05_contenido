@@ -6,12 +6,16 @@ DROP TABLE IF EXISTS artista_cancion;
 DROP TABLE IF EXISTS cancion;
 DROP TABLE IF EXISTS album;
 DROP TABLE IF EXISTS genero;
-DROP TABLE IF EXISTS pedido;
-DROP TABLE IF EXISTS pedido_item;
+DROP TABLE IF EXISTS formato;
 
 CREATE TABLE genero (
   id SERIAL PRIMARY KEY,
   nombre VARCHAR(120) NOT NULL UNIQUE
+);
+
+CREATE TABLE formato (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL UNIQUE
 );
 
 CREATE TABLE album (
@@ -23,6 +27,12 @@ CREATE TABLE album (
   genero INTEGER REFERENCES genero(id),
   artista INTEGER,
   precio NUMERIC(10,2) NOT NULL
+);
+
+CREATE TABLE album_formato (
+  album INTEGER REFERENCES album(id) ON DELETE CASCADE,
+  formato INTEGER REFERENCES formato(id),
+  PRIMARY KEY (album, formato)
 );
 
 CREATE TABLE cancion (

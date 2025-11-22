@@ -13,6 +13,10 @@ import (
     "net/http"
     "strconv"
     "strings"
+    "fmt"
+    "encoding/base64"
+    "encoding/json"
+    "io"
 
     "github.com/gin-gonic/gin"
 )
@@ -21,87 +25,544 @@ type SearchAPI struct {
     DB *sql.DB
 }
 
+// Estructura para la respuesta del microservicio de usuarios
+type UsuarioResponse struct {
+    Id    int32  `json:"id"`
+    Nombre string `json:"nombre"`
+    Correo string `json:"correo,omitempty"`
+}
 
+// obtenerNombreArtista obtiene el nombre del artista desde el microservicio de usuarios
+func (api *SearchAPI) obtenerNombreArtista(artistaID int32) (string, error) {
+    // URL del microservicio de usuarios (ajusta el puerto según tu configuración)
+    url := "http://usuarios-app:8080/usuarios/" + strconv.Itoa(int(artistaID))
+    
+    resp, err := http.Get(url)
+    if err != nil {
+        return "", fmt.Errorf("error al conectar con microservicio de usuarios: %v", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return "", fmt.Errorf("usuario no encontrado (status: %d)", resp.StatusCode)
+    }
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return "", fmt.Errorf("error al leer respuesta: %v", err)
+    }
+
+    var usuario UsuarioResponse
+    if err := json.Unmarshal(body, &usuario); err != nil {
+        return "", fmt.Errorf("error al parsear respuesta: %v", err)
+    }
+
+    return usuario.Nombre, nil
+}
+
+// ResolverIDGenero retorna el id del género para un parámetro dado que puede ser un ID o un nombre.
+func (api *SearchAPI) ResolverIDGenero(generoParam string) (*int, error) {
+    generoParam = strings.TrimSpace(generoParam)
+    if generoParam == "" {
+        return nil, nil
+    }
+    if id, err := strconv.Atoi(generoParam); err == nil {
+        return &id, nil
+    }
+    var gid int
+    // Intentar coincidencia exacta (case-insensitive) primero
+    err := api.DB.QueryRow("SELECT id FROM genero WHERE lower(nombre)=lower($1) LIMIT 1", generoParam).Scan(&gid)
+    if err == nil {
+        return &gid, nil
+    }
+    // Fallback a coincidencia parcial usando ILIKE
+    like := "%" + generoParam + "%"
+    if err2 := api.DB.QueryRow("SELECT id FROM genero WHERE nombre ILIKE $1 LIMIT 1", like).Scan(&gid); err2 == nil {
+        return &gid, nil
+    }
+    return nil, nil // no encontrado no es un error para nuestro caso de uso
+}
+
+// ResolverIDFormato retorna el id del formato para un parámetro dado que puede ser un ID o un nombre
+func (api *SearchAPI) ResolverIDFormato(formatoParam string) (*int, error) {
+    formatoParam = strings.TrimSpace(formatoParam)
+    if formatoParam == "" {
+        return nil, nil
+    }
+    if id, err := strconv.Atoi(formatoParam); err == nil {
+        return &id, nil
+    }
+    var fid int
+    // Intentar coincidencia exacta (case-insensitive) primero
+    err := api.DB.QueryRow("SELECT id FROM formato WHERE lower(nombre)=lower($1) LIMIT 1", formatoParam).Scan(&fid)
+    if err == nil {
+        return &fid, nil
+    }
+    // Fallback a coincidencia parcial usando ILIKE
+    like := "%" + formatoParam + "%"
+    if err2 := api.DB.QueryRow("SELECT id FROM formato WHERE nombre ILIKE $1 LIMIT 1", like).Scan(&fid); err2 == nil {
+        return &fid, nil
+    }
+    return nil, nil // no encontrado no es un error para nuestro caso de uso
+}
+
+// BuscarAlbumes consulta álbumes con filtro opcional de nombre, género y formato
+func (api *SearchAPI) BuscarAlbumes(q string, generoID *int, formatoID *int, pagina, porPagina int) ([]AlbumResult, int, error) {
+    likeQ := "%"
+    if q != "" {
+        likeQ = "%" + q + "%"
+    }
+    var where []string
+    var args []interface{}
+    idx := 1
+    
+    fmt.Printf("DEBUG BuscarAlbumes - Parámetros: q='%s', generoID=%v, formatoID=%v\n", q, generoID, formatoID)
+    
+    // Base query
+    baseQuery := "FROM album a"
+    if formatoID != nil {
+        baseQuery += " JOIN album_formato af ON a.id = af.album"
+        where = append(where, fmt.Sprintf("af.formato = $%d", idx))
+        args = append(args, *formatoID)
+        idx++
+    }
+    
+    if q != "" {
+        where = append(where, fmt.Sprintf("a.nombre ILIKE $%d", idx))
+        args = append(args, likeQ)
+        idx++
+    }
+    if generoID != nil {
+        where = append(where, fmt.Sprintf("a.genero = $%d", idx))
+        args = append(args, *generoID)
+        idx++
+    }
+    
+    whereClause := ""
+    if len(where) > 0 {
+        whereClause = "WHERE " + strings.Join(where, " AND ")
+    }
+    
+    // DEBUG: Mostrar la consulta COUNT
+    countQuery := fmt.Sprintf("SELECT COUNT(DISTINCT a.id) %s %s", baseQuery, whereClause)
+    fmt.Printf("DEBUG COUNT Query: %s\n", countQuery)
+    fmt.Printf("DEBUG COUNT Args: %v\n", args)
+    
+    // conteo
+    var total int
+    if err := api.DB.QueryRow(countQuery, args...).Scan(&total); err != nil {
+        fmt.Printf("DEBUG COUNT Error: %v\n", err)
+        return nil, 0, err
+    }
+    
+    fmt.Printf("DEBUG COUNT Result: %d\n", total)
+    
+    // Si total es 0, no continuar
+    if total == 0 {
+        return []AlbumResult{}, 0, nil
+    }
+    
+    // paginación
+    offset := (pagina - 1) * porPagina
+    
+    // Query de selección
+    selQuery := fmt.Sprintf(`
+        SELECT DISTINCT a.id, a.nombre, a.duracion, a.imagen, a.fecha, a.genero, a.artista, a.precio
+        %s %s 
+        ORDER BY a.id LIMIT $%d OFFSET $%d`, 
+        baseQuery, whereClause, len(args)+1, len(args)+2)
+    
+    selArgs := append(args, porPagina, offset)
+    fmt.Printf("DEBUG SELECT Query: %s\n", selQuery)
+    fmt.Printf("DEBUG SELECT Args: %v\n", selArgs)
+    
+    filas, err := api.DB.Query(selQuery, selArgs...)
+    if err != nil {
+        fmt.Printf("DEBUG SELECT Error: %v\n", err)
+        return nil, total, err
+    }
+    defer filas.Close()
+    
+    var items []AlbumResult
+    for filas.Next() {
+        var a AlbumResult
+		var duracion sql.NullInt32
+        var fecha sql.NullString
+        var imagen []byte
+        var genero sql.NullInt32
+        var precio sql.NullFloat64
+        
+        if err := filas.Scan(&a.Id, &a.Nombre, &duracion, &imagen, &fecha, &genero, &a.Artista, &precio); err != nil {
+            fmt.Printf("DEBUG SCAN Error: %v\n", err)
+            return nil, total, err
+        }
+
+		// Manejar duracion NULL
+		if duracion.Valid {
+			a.Duracion = duracion.Int32
+		} else {
+			a.Duracion = 0 // o algún valor por defecto
+		}
+        
+        // Convertir imagen a base64 si existe
+        if len(imagen) > 0 {
+            a.Imagen = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(imagen)
+        }
+        
+        if fecha.Valid {
+            a.Fecha = fecha.String
+        }
+        
+        if genero.Valid {
+            a.Genero = genero.Int32
+        }
+        
+        if precio.Valid {
+            a.Precio = precio.Float64
+        }
+        
+        // Obtener nombre del artista
+        nombreArtista, err := api.obtenerNombreArtista(a.Artista)
+        if err == nil {
+            a.NombreArtista = nombreArtista
+        } else {
+            fmt.Printf("DEBUG Artista Error for ID %d: %v\n", a.Artista, err)
+            a.NombreArtista = "Artista Desconocido"
+        }
+        
+        // Obtener formatos del álbum
+        formatosFilas, err := api.DB.Query("SELECT formato FROM album_formato WHERE album = $1", a.Id)
+        if err == nil {
+            defer formatosFilas.Close()
+            for formatosFilas.Next() {
+                var formato int32
+                if err := formatosFilas.Scan(&formato); err == nil {
+                    a.Formatos = append(a.Formatos, formato)
+                }
+            }
+        }
+        
+        items = append(items, a)
+        fmt.Printf("DEBUG Album encontrado: ID=%d, Nombre=%s\n", a.Id, a.Nombre)
+    }
+    
+    fmt.Printf("DEBUG Total álbumes encontrados: %d\n", len(items))
+    return items, total, nil
+}
+
+// BuscarCanciones consulta canciones con filtro opcional de nombre y género.
+func (api *SearchAPI) BuscarCanciones(q string, generoID *int, pagina, porPagina int) ([]CancionResult, int, error) {
+    likeQ := "%"
+    if q != "" {
+        likeQ = "%" + q + "%"
+    }
+    var where []string
+    var args []interface{}
+    idx := 1
+    if q != "" {
+        where = append(where, fmt.Sprintf("c.nombre ILIKE $%d", idx))
+        args = append(args, likeQ)
+        idx++
+    }
+    if generoID != nil {
+        where = append(where, fmt.Sprintf("c.album IN (SELECT id FROM album WHERE genero = $%d)", idx))
+        args = append(args, *generoID)
+        idx++
+    }
+    whereClause := ""
+    if len(where) > 0 {
+        whereClause = "WHERE " + strings.Join(where, " AND ")
+    }
+    var total int
+    if err := api.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM cancion c %s", whereClause), args...).Scan(&total); err != nil {
+        return nil, 0, err
+    }
+    offset := (pagina - 1) * porPagina
+    // NO incluimos archivo_audio para evitar carga excesiva
+    selQuery := fmt.Sprintf("SELECT c.id, c.nombre, c.duracion, c.album FROM cancion c %s ORDER BY c.id LIMIT $%d OFFSET $%d", whereClause, len(args)+1, len(args)+2)
+    args = append(args, porPagina, offset)
+    filas, err := api.DB.Query(selQuery, args...)
+    if err != nil {
+        return nil, total, err
+    }
+    defer filas.Close()
+    var items []CancionResult
+    for filas.Next() {
+        var s CancionResult
+        if err := filas.Scan(&s.Id, &s.Nombre, &s.Duracion, &s.Album); err != nil {
+            return nil, total, err
+        }
+        items = append(items, s)
+    }
+    return items, total, nil
+}
+
+// BuscarMerch consulta productos de merchandising con filtro opcional de nombre.
+func (api *SearchAPI) BuscarMerch(q string, pagina, porPagina int) ([]Merch, int, error) {
+    likeQ := "%"
+    if q != "" {
+        likeQ = "%" + q + "%"
+    }
+    var where []string
+    var args []interface{}
+    idx := 1
+    if q != "" {
+        where = append(where, fmt.Sprintf("nombre ILIKE $%d", idx))
+        args = append(args, likeQ)
+        idx++
+    }
+    whereClause := ""
+    if len(where) > 0 {
+        whereClause = "WHERE " + strings.Join(where, " AND ")
+    }
+    var total int
+    if err := api.DB.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM merchandising %s", whereClause), args...).Scan(&total); err != nil {
+        return nil, 0, err
+    }
+    offset := (pagina - 1) * porPagina
+    selQuery := fmt.Sprintf("SELECT id,nombre,precio,imagen,artista,stock FROM merchandising %s ORDER BY id LIMIT $%d OFFSET $%d", whereClause, len(args)+1, len(args)+2)
+    args = append(args, porPagina, offset)
+    filas, err := api.DB.Query(selQuery, args...)
+    if err != nil {
+        return nil, total, err
+    }
+    defer filas.Close()
+    var items []Merch
+    for filas.Next() {
+        var m Merch
+        if err := filas.Scan(&m.Id, &m.Nombre, &m.Precio, &m.Imagen, &m.Artista, &m.Stock); err != nil {
+            return nil, total, err
+        }
+        
+        // Obtener nombre del artista
+        nombreArtista, err := api.obtenerNombreArtista(m.Artista)
+        if err == nil {
+            m.NombreArtista = nombreArtista
+        }
+        
+        items = append(items, m)
+    }
+    return items, total, nil
+}
+
+// BuscarArtistas recopila IDs de artistas por presencia en álbum, canción y merchandising; retorna conteos agregados.
+func (api *SearchAPI) BuscarArtistas(q string, generoID *int) ([]ArtistResult, int, error) {
+    likeQ := "%"
+    if q != "" {
+        likeQ = "%" + q + "%"
+    }
+    artistasMap := map[int32]*ArtistResult{}
+
+    // desde álbumes
+    {
+        var args []interface{}
+        var where []string
+        idx := 1
+        if q != "" {
+            where = append(where, fmt.Sprintf("nombre ILIKE $%d", idx))
+            args = append(args, likeQ)
+            idx++
+        }
+        if generoID != nil {
+            where = append(where, fmt.Sprintf("genero = $%d", idx))
+            args = append(args, *generoID)
+            idx++
+        }
+        whereClause := ""
+        if len(where) > 0 {
+            whereClause = "WHERE " + strings.Join(where, " AND ")
+        }
+        filas, err := api.DB.Query(fmt.Sprintf("SELECT DISTINCT artista FROM album %s", whereClause), args...)
+        if err == nil {
+            defer filas.Close()
+            for filas.Next() {
+                var id sql.NullInt64
+                if err := filas.Scan(&id); err == nil && id.Valid {
+                    aid := int32(id.Int64)
+                    ar := artistasMap[aid]
+                    if ar == nil {
+                        ar = &ArtistResult{Id: aid}
+                        artistasMap[aid] = ar
+                    }
+                    ar.AlbumsCount++
+                }
+            }
+        }
+    }
+
+    // desde artista_cancion join cancion
+    {
+        var args []interface{}
+        var where []string
+        idx := 1
+        if q != "" {
+            where = append(where, fmt.Sprintf("c.nombre ILIKE $%d", idx))
+            args = append(args, likeQ)
+            idx++
+        }
+        whereClause := ""
+        if len(where) > 0 {
+            whereClause = "WHERE " + strings.Join(where, " AND ")
+        }
+        query := fmt.Sprintf("SELECT DISTINCT ac.artista FROM artista_cancion ac JOIN cancion c ON ac.cancion = c.id %s", whereClause)
+        filas, err := api.DB.Query(query, args...)
+        if err == nil {
+            defer filas.Close()
+            for filas.Next() {
+                var id sql.NullInt64
+                if err := filas.Scan(&id); err == nil && id.Valid {
+                    aid := int32(id.Int64)
+                    ar := artistasMap[aid]
+                    if ar == nil {
+                        ar = &ArtistResult{Id: aid}
+                        artistasMap[aid] = ar
+                    }
+                    ar.SongsCount++
+                }
+            }
+        }
+    }
+
+    // desde merchandising
+    {
+        var args []interface{}
+        var where []string
+        idx := 1
+        if q != "" {
+            where = append(where, fmt.Sprintf("nombre ILIKE $%d", idx))
+            args = append(args, likeQ)
+            idx++
+        }
+        whereClause := ""
+        if len(where) > 0 {
+            whereClause = "WHERE " + strings.Join(where, " AND ")
+        }
+        filas, err := api.DB.Query(fmt.Sprintf("SELECT DISTINCT artista FROM merchandising %s", whereClause), args...)
+        if err == nil {
+            defer filas.Close()
+            for filas.Next() {
+                var id sql.NullInt64
+                if err := filas.Scan(&id); err == nil && id.Valid {
+                    aid := int32(id.Int64)
+                    ar := artistasMap[aid]
+                    if ar == nil {
+                        ar = &ArtistResult{Id: aid}
+                        artistasMap[aid] = ar
+                    }
+                    ar.MerchCount++
+                }
+            }
+        }
+    }
+
+    // Obtener nombres de artistas
+    var artistas []ArtistResult
+    for _, a := range artistasMap {
+        nombreArtista, err := api.obtenerNombreArtista(a.Id)
+        if err == nil {
+            a.Nombre = nombreArtista
+        }
+        artistas = append(artistas, *a)
+    }
+    return artistas, len(artistas), nil
+}
 
 // GET /busqueda
-// Params: q (nombre), genero (id o nombre), type (albumes|canciones|merch|artistas), page, per_page
+// Params: q (nombre), genero (id o nombre), formato (id o nombre), type (albumes|canciones|merch|artistas), page, per_page
 func (api *SearchAPI) BusquedaGet(c *gin.Context) {
     q := strings.TrimSpace(c.Query("q"))
     generoParam := strings.TrimSpace(c.Query("genero"))
-    typ := strings.TrimSpace(strings.ToLower(c.Query("type")))
+    formatoParam := strings.TrimSpace(c.Query("formato"))
+    tipo := strings.TrimSpace(strings.ToLower(c.Query("type")))
 
-    pageStr := c.DefaultQuery("page", "1")
-    perPageStr := c.DefaultQuery("per_page", "10")
-    page, _ := strconv.Atoi(pageStr)
-    perPage, _ := strconv.Atoi(perPageStr)
-    if page < 1 {
-        page = 1
+    paginaStr := c.DefaultQuery("page", "1")
+    porPaginaStr := c.DefaultQuery("per_page", "10")
+    pagina, _ := strconv.Atoi(paginaStr)
+    porPagina, _ := strconv.Atoi(porPaginaStr)
+    if pagina < 1 {
+        pagina = 1
     }
-    if perPage < 1 || perPage > 100 {
-        perPage = 10
+    if porPagina < 1 || porPagina > 100 {
+        porPagina = 10
     }
-    // pagination handled inside repo functions; no local offset needed
 
-    // resolve genero param to id if given as name or id
-    generoID, _ := ResolveGeneroID(api.DB, generoParam)
+    // resolver parámetros a IDs
+    generoID, _ := api.ResolverIDGenero(generoParam)
+    formatoID, _ := api.ResolverIDFormato(formatoParam)
 
     resp := SearchResponse{
-        Page:    page,
-        PerPage: perPage,
+        Page:    pagina,
+        PerPage: porPagina,
         Totals:  map[string]int{},
         Results: map[string]interface{}{},
     }
 
-    // Search albums
-    if typ == "" || typ == "albumes" {
-        albums, total, err := SearchAlbums(api.DB, q, generoID, page, perPage)
-        if err != nil { albums = []AlbumResult{} }
-        resp.Totals["albumes"] = total
-        resp.Results["albumes"] = albums
+    // Buscar álbumes (ahora con filtro de formato)
+    if tipo == "" || tipo == "albumes" {
+        albumes, total, err := api.BuscarAlbumes(q, generoID, formatoID, pagina, porPagina)
+        if err != nil { 
+            albumes = []AlbumResult{} 
+            resp.Totals["albumes"] = 0
+        } else {
+            resp.Totals["albumes"] = total
+        }
+        resp.Results["albumes"] = albumes
     }
 
-    // Search canciones
-    if typ == "" || typ == "canciones" {
-        songs, total, err := SearchCanciones(api.DB, q, generoID, page, perPage)
-        if err != nil { songs = []CancionResult{} }
-        resp.Totals["canciones"] = total
-        resp.Results["canciones"] = songs
+    // Buscar canciones (sin cambios)
+    if tipo == "" || tipo == "canciones" {
+        canciones, total, err := api.BuscarCanciones(q, generoID, pagina, porPagina)
+        if err != nil { 
+            canciones = []CancionResult{} 
+            resp.Totals["canciones"] = 0
+        } else {
+            resp.Totals["canciones"] = total
+        }
+        resp.Results["canciones"] = canciones
     }
 
-    // Search merch
-    if typ == "" || typ == "merch" || typ == "merchandising" {
-        merchs, total, err := SearchMerch(api.DB, q, page, perPage)
-        if err != nil { merchs = []Merch{} }
-        resp.Totals["merch"] = total
-        resp.Results["merch"] = merchs
+    // Buscar merch (sin cambios)
+    if tipo == "" || tipo == "merch" || tipo == "merchandising" {
+        merchandising, total, err := api.BuscarMerch(q, pagina, porPagina)
+        if err != nil { 
+            merchandising = []Merch{} 
+            resp.Totals["merch"] = 0
+        } else {
+            resp.Totals["merch"] = total
+        }
+        resp.Results["merch"] = merchandising
     }
 
-    // Search artists (by id present in tables)
-    if typ == "" || typ == "artistas" {
-        artists, total, err := SearchArtistas(api.DB, q, generoID)
-        if err != nil { artists = []ArtistResult{} }
-        resp.Totals["artistas"] = total
-        resp.Results["artistas"] = artists
+    // Buscar artistas (sin cambios)
+    if tipo == "" || tipo == "artistas" {
+        artistas, total, err := api.BuscarArtistas(q, generoID)
+        if err != nil { 
+            artistas = []ArtistResult{} 
+            resp.Totals["artistas"] = 0
+        } else {
+            resp.Totals["artistas"] = total
+        }
+        resp.Results["artistas"] = artistas
     }
 
-    // If everything empty, return message
-    empty := true
+    // Si todo está vacío, retornar mensaje
+    vacio := true
     for _, v := range resp.Results {
         switch vv := v.(type) {
         case []AlbumResult:
-            if len(vv) > 0 { empty = false }
+            if len(vv) > 0 { vacio = false }
         case []CancionResult:
-            if len(vv) > 0 { empty = false }
+            if len(vv) > 0 { vacio = false }
         case []Merch:
-            if len(vv) > 0 { empty = false }
+            if len(vv) > 0 { vacio = false }
         case []ArtistResult:
-            if len(vv) > 0 { empty = false }
+            if len(vv) > 0 { vacio = false }
         default:
-            if v != nil { empty = false }
+            if v != nil { vacio = false }
         }
     }
 
-    if empty {
+    if vacio {
         c.JSON(http.StatusOK, gin.H{"status": "OK", "message": "No se encontraron coincidencias", "data": resp})
         return
     }
