@@ -4,7 +4,7 @@ info:
     \ proyecto \"UnderSounds\", incluyendo albumes, canciones, generos, merchandising\
     \ y noticias musicales."
   title: Microservicio de Contenido - UnderSounds
-  version: 1.0.0
+  version: 1.1.0
 servers:
 - url: /
 tags:
@@ -18,33 +18,19 @@ tags:
   name: Merchandising
 - description: Gestion y consulta de noticias musicales.
   name: Noticias
+- description: Busqueda global de contenido.
+  name: Busqueda
+- description: Procesamiento de pedidos y pagos.
+  name: Pedidos
 paths:
   /albums:
     get:
       parameters:
-      - description: Filtra los albumes por el ID del genero
-        example: 1
-        explode: true
-        in: query
-        name: generoId
-        required: false
-        schema:
-          type: integer
-        style: form
-      - description: Filtrar albumes que contengan este texto en el nombre
-        example: Indie Vibes
-        explode: true
-        in: query
-        name: nombre
-        required: false
-        schema:
-          type: string
-        style: form
       - description: Filtrar albumes por ID de artista
         example: 3
         explode: true
         in: query
-        name: artistaId
+        name: artista
         required: false
         schema:
           type: integer
@@ -56,13 +42,14 @@ paths:
               example:
               - id: 1
                 nombre: Indie Vibes
-                duracion: 42:15
-                urlImagen: https://example.com/images/album1.jpg
+                duracion: 2535
+                imagen: null
                 fecha: 2024-09-15
                 genero:
                   id: 1
                   nombre: Indie
                 artista: 1
+                precio: 9.99
               schema:
                 items:
                   $ref: "#/components/schemas/Album"
@@ -70,7 +57,7 @@ paths:
           description: Lista de albumes obtenida correctamente
         "404":
           description: Albumes no encontrados
-      summary: Listar albumes con filtros opcionales
+      summary: Listar todos los albumes (con filtro opcional por artista)
       tags:
       - Albumes
     post:
@@ -79,15 +66,15 @@ paths:
           application/json:
             example:
               nombre: Electro Beats
-              duracion: 38:20
-              urlImagen: https://example.com/images/electrobeats.jpg
+              duracion: 2300
+              imagen: null
               fecha: 2025-01-10
-              genero:
-                id: 3
-                nombre: Electronica
+              genero: 3
               artista: 3
+              precio: 12.99
+              formato: 1
             schema:
-              $ref: "#/components/schemas/Album"
+              $ref: "#/components/schemas/CreateAlbumRequest"
         required: true
       responses:
         "201":
@@ -110,6 +97,8 @@ paths:
       responses:
         "204":
           description: Album eliminado correctamente
+        "404":
+          description: Album no encontrado
       summary: Eliminar un album
       tags:
       - Albumes
@@ -129,21 +118,16 @@ paths:
               example:
                 id: 1
                 nombre: Indie Vibes
-                duracion: 42:15
-                urlImagen: https://example.com/images/album1.jpg
+                duracion: 2535
+                imagen: null
                 fecha: 2024-09-15
                 genero:
                   id: 1
                   nombre: Indie
                 artista: 1
-                canciones:
-                - id: 1
-                  nombre: Sunrise
-                  duracion: 3:45
-                  urlImagen: https://example.com/images/song1.jpg
-                  album: 1
+                precio: 9.99
               schema:
-                $ref: "#/components/schemas/AlbumDetalle"
+                $ref: "#/components/schemas/Album"
           description: Album encontrado
         "404":
           description: Album no encontrado
@@ -163,7 +147,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Album"
+              $ref: "#/components/schemas/UpdateAlbumRequest"
         required: true
       responses:
         "200":
@@ -173,8 +157,8 @@ paths:
       summary: Actualizar un album existente
       tags:
       - Albumes
-  /albums/{id}/recargarStockAlbum:
-    patch:
+  /albums/{id}/detalle:
+    get:
       parameters:
       - explode: false
         in: path
@@ -183,22 +167,36 @@ paths:
         schema:
           type: integer
         style: simple
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/recargarStockAlbum"
-        required: true
       responses:
-        "201":
-          description: Aumento del stock realizado de forma correcta
-        "400":
-          description: Datos de entrada invalidos
-      summary: Aumentar la cantidad disponible de un producto
+        "200":
+          content:
+            application/json:
+              example:
+                id: 1
+                nombre: Indie Vibes
+                duracion: "42:15"
+                fecha: 2024-09-15
+                genero:
+                  id: 1
+                  nombre: Indie
+                artista: 1
+                nombreArtista: "Nombre del Artista"
+                precio: 9.99
+                canciones:
+                - id: 1
+                  nombre: Sunrise
+                  duracion: "3:45"
+                  album: 1
+              schema:
+                $ref: "#/components/schemas/AlbumDetalle"
+          description: Detalles completos del album con canciones
+        "404":
+          description: Album no encontrado
+      summary: Obtener detalles completos de un album incluyendo canciones
       tags:
       - Albumes
-  /albums/{id}/disminuirStockAlbum:
-    patch:
+  /albums/{id}/imagen:
+    get:
       parameters:
       - explode: false
         in: path
@@ -207,18 +205,21 @@ paths:
         schema:
           type: integer
         style: simple
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/disminuirStockAlbum"
-        required: true
       responses:
-        "201":
-          description: Aumento del stock realizado de forma correcta
-        "400":
-          description: Datos de entrada invalidos
-      summary: Disminuir la cantidad disponible de un album
+        "200":
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+          description: Imagen del album
+        "404":
+          description: Album o imagen no encontrados
+      summary: Obtener la imagen de un album
       tags:
       - Albumes
   /canciones:
@@ -230,8 +231,7 @@ paths:
               example:
               - id: 1
                 nombre: Sunrise
-                duracion: 3:45
-                urlImagen: https://example.com/images/song1.jpg
+                duracion: "3:45"
                 album: 1
               schema:
                 items:
@@ -239,7 +239,7 @@ paths:
                 type: array
           description: Lista de canciones
         "404":
-          description: Canciones no encontrado
+          description: No se encontraron canciones
       summary: Listar todas las canciones
       tags:
       - Canciones
@@ -249,9 +249,9 @@ paths:
           application/json:
             example:
               nombre: Starlight
-              duracion: 3:55
-              urlImagen: https://example.com/images/song3.jpg
+              duracion: "3:55"
               album: 2
+              archivoAudio: null
             schema:
               $ref: "#/components/schemas/Cancion"
         required: true
@@ -261,6 +261,36 @@ paths:
         "400":
           description: Datos de entrada invalidos
       summary: Crear una nueva cancion
+      tags:
+      - Canciones
+  /canciones/album/{id}:
+    get:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        style: simple
+        description: ID del album
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+              - id: 1
+                nombre: Sunrise
+                duracion: "3:45"
+                album: 1
+              schema:
+                items:
+                  $ref: "#/components/schemas/Cancion"
+                type: array
+          description: Lista de canciones del album
+        "404":
+          description: Album no encontrado
+      summary: Obtener todas las canciones de un album
       tags:
       - Canciones
   /canciones/{id}:
@@ -276,6 +306,8 @@ paths:
       responses:
         "204":
           description: Cancion eliminada correctamente
+        "404":
+          description: Cancion no encontrada
       summary: Eliminar una cancion
       tags:
       - Canciones
@@ -295,14 +327,13 @@ paths:
               example:
                 id: 1
                 nombre: Sunrise
-                duracion: 3:45
-                urlImagen: https://example.com/images/song1.jpg
+                duracion: "3:45"
                 album: 1
               schema:
                 $ref: "#/components/schemas/Cancion"
           description: Cancion encontrada
         "404":
-          description: Cancion no encontrado
+          description: Cancion no encontrada
       summary: Obtener detalles de una cancion
       tags:
       - Canciones
@@ -325,7 +356,7 @@ paths:
         "200":
           description: Cancion actualizada correctamente
         "404":
-          description: Cancion no encontrado
+          description: Cancion no encontrada
       summary: Actualizar datos de una cancion
       tags:
       - Canciones
@@ -350,7 +381,30 @@ paths:
           description: Autores de la cancion obtenidos exitosamente
         "404":
           description: Cancion no encontrada
-      summary: Obtener los artista de una cancion
+      summary: Obtener los artistas de una cancion
+      tags:
+      - Canciones
+  /canciones/{id}/archivo:
+    get:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+          description: Archivo de audio de la cancion
+        "404":
+          description: Cancion o archivo de audio no encontrados
+      summary: Obtener el archivo de audio de una cancion
       tags:
       - Canciones
   /generos:
@@ -384,14 +438,14 @@ paths:
               - id: 1
                 nombre: Camiseta Indie Vibes
                 precio: 25.0
-                urlImagen: https://example.com/images/merch1.jpg
+                imagen: null
                 artista: 1
                 stock: 50
               schema:
                 items:
                   $ref: "#/components/schemas/Merch"
                 type: array
-          description: Lista de productos
+          description: Lista de productos de merchandising
       summary: Listar todos los productos de merchandising
       tags:
       - Merchandising
@@ -402,11 +456,11 @@ paths:
             example:
               nombre: Sudadera Electro Beats
               precio: 35.0
-              urlImagen: https://example.com/images/merch3.jpg
+              imagen: null
               artista: 3
               stock: 20
             schema:
-              $ref: "#/components/schemas/Merch"
+              $ref: "#/components/schemas/CreateMerchRequest"
         required: true
       responses:
         "201":
@@ -429,6 +483,8 @@ paths:
       responses:
         "204":
           description: Producto eliminado correctamente
+        "404":
+          description: Producto no encontrado
       summary: Eliminar un producto
       tags:
       - Merchandising
@@ -449,14 +505,14 @@ paths:
                 id: 1
                 nombre: Camiseta Indie Vibes
                 precio: 25.0
-                urlImagen: https://example.com/images/merch1.jpg
+                imagen: null
                 artista: 1
                 stock: 50
               schema:
                 $ref: "#/components/schemas/Merch"
           description: Producto encontrado
         "404":
-          description: Merch no encontrado
+          description: Producto no encontrado
       summary: Obtener un producto de merchandising
       tags:
       - Merchandising
@@ -473,13 +529,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Merch"
+              $ref: "#/components/schemas/UpdateMerchRequest"
         required: true
       responses:
         "200":
           description: Producto actualizado correctamente
         "404":
-          description: Merch no encontrado
+          description: Producto no encontrado
       summary: Actualizar un producto
       tags:
       - Merchandising
@@ -497,13 +553,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/recargarStockMerch"
+              $ref: "#/components/schemas/RecargarStockMerch"
         required: true
       responses:
-        "201":
-          description: Aumento del stock realizado de forma correcta
+        "200":
+          description: Stock incrementado correctamente
         "400":
           description: Datos de entrada invalidos
+        "404":
+          description: Producto no encontrado
       summary: Aumentar la cantidad disponible de un producto
       tags:
       - Merchandising
@@ -521,13 +579,15 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/disminuirStockMerch"
+              $ref: "#/components/schemas/DisminuirStockMerch"
         required: true
       responses:
-        "201":
-          description: Aumento del stock realizado de forma correcta
+        "200":
+          description: Stock decrementado correctamente
         "400":
           description: Datos de entrada invalidos
+        "404":
+          description: Producto no encontrado
       summary: Disminuir la cantidad disponible de un producto
       tags:
       - Merchandising
@@ -541,15 +601,16 @@ paths:
               - id: 1
                 titulo: Nuevo album Indie Vibes lanzado
                 contenidoHTML: <p>El esperado album Indie Vibes ya esta disponible.</p>
-                fecha: 2024-09-15
+                fecha: "2024-09-15"
                 autor: 1
+                nombreAutor: "Nombre del Autor"
               schema:
                 items:
                   $ref: "#/components/schemas/Noticia"
                 type: array
-          description: Lista de noticias
+          description: Lista de noticias ordenadas por fecha descendente
         "404":
-          description: Noticias no encontrados
+          description: No se encontraron noticias
       summary: Listar noticias recientes
       tags:
       - Noticias
@@ -561,7 +622,7 @@ paths:
               titulo: Lanzamiento de Electro Beats
               contenidoHTML: <p>El nuevo album Electro Beats estara disponible desde
                 enero.</p>
-              fecha: 2025-01-10
+              fecha: "2025-01-10"
               autor: 3
             schema:
               $ref: "#/components/schemas/Noticia"
@@ -592,8 +653,9 @@ paths:
                 id: 1
                 titulo: Nuevo album Indie Vibes lanzado
                 contenidoHTML: <p>El esperado album Indie Vibes ya esta disponible.</p>
-                fecha: 2024-09-15
+                fecha: "2024-09-15"
                 autor: 1
+                nombreAutor: "Nombre del Autor"
               schema:
                 $ref: "#/components/schemas/Noticia"
           description: Noticia encontrada
@@ -619,19 +681,115 @@ paths:
       summary: Eliminar una noticia
       tags:
       - Noticias
+  /busqueda:
+    get:
+      parameters:
+      - description: Texto de búsqueda para filtrar por nombre
+        explode: true
+        in: query
+        name: q
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Filtrar por género (ID o nombre)
+        explode: true
+        in: query
+        name: genero
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Filtrar por formato de album (ID o nombre)
+        explode: true
+        in: query
+        name: formato
+        required: false
+        schema:
+          type: string
+        style: form
+      - description: Tipo de búsqueda (albumes, canciones, merch, artistas)
+        explode: true
+        in: query
+        name: type
+        required: false
+        schema:
+          type: string
+          enum: [albumes, canciones, merch, merchandising, artistas]
+        style: form
+      - description: Número de página
+        explode: true
+        in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          default: 1
+        style: form
+      - description: Resultados por página (máximo 100)
+        explode: true
+        in: query
+        name: per_page
+        required: false
+        schema:
+          type: integer
+          default: 10
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+          description: Resultados de búsqueda
+      summary: Búsqueda global de contenido
+      tags:
+      - Busqueda
+  /pedido/pago:
+    post:
+      requestBody:
+        content:
+          application/json:
+            example:
+              cliente_id: 1
+              producto:
+                id: 1
+                tipo: "digital"
+                cantidad: 1
+              pago:
+                tipo: "tarjeta"
+                numero: "1234567890123456"
+                cvv: "123"
+                expiracion: "12/25"
+            schema:
+              $ref: "#/components/schemas/PedidoRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PedidoResponse"
+          description: Pedido procesado correctamente
+        "400":
+          description: Datos de entrada invalidos o stock insuficiente
+      summary: Procesar un pedido y pago
+      tags:
+      - Pedidos
 components:
   schemas:
     Album:
       example:
-        fecha: 2024-09-15
+        fecha: "2024-09-15"
         artista: 1
         genero:
           id: 1
           nombre: Indie
-        duracion: 42:15
+        duracion: 2535
         id: 1
         nombre: Indie Vibes
-        urlImagen: https://example.com/images/album1.jpg
+        imagen: null
+        precio: 9.99
       properties:
         id:
           example: 1
@@ -640,13 +798,15 @@ components:
           example: Indie Vibes
           type: string
         duracion:
-          example: 42:15
+          example: 2535
+          type: integer
+          description: Duracion en segundos
+        imagen:
           type: string
-        urlImagen:
-          example: https://example.com/images/album1.jpg
-          type: string
+          format: byte
+          description: Imagen del album en formato binario (BYTEA)
         fecha:
-          example: 2024-09-15
+          example: "2024-09-15"
           format: date
           type: string
         genero:
@@ -654,51 +814,114 @@ components:
         artista:
           example: 1
           type: integer
+        precio:
+          example: 9.99
+          type: number
+          format: float
       required:
       - artista
-      - duracion
-      - fecha
       - genero
       - nombre
-      - urlImagen
+      - precio
+      type: object
+    CreateAlbumRequest:
+      properties:
+        nombre:
+          type: string
+          example: Indie Vibes
+        duracion:
+          type: integer
+          description: Duracion en segundos (opcional)
+          example: 2535
+        imagen:
+          type: string
+          format: byte
+          description: Imagen del album en formato binario
+        fecha:
+          type: string
+          format: date
+          example: "2024-09-15"
+        genero:
+          type: integer
+          example: 1
+        artista:
+          type: integer
+          example: 1
+        precio:
+          type: number
+          format: float
+          example: 9.99
+        formato:
+          type: integer
+          description: ID del formato (opcional, por defecto Digital con ID 1)
+          example: 1
+      required:
+      - nombre
+      - genero
+      - artista
+      - precio
+      type: object
+    UpdateAlbumRequest:
+      properties:
+        nombre:
+          type: string
+        duracion:
+          type: integer
+          description: Duracion en segundos
+        imagen:
+          type: string
+          format: byte
+        fecha:
+          type: string
+          format: date
+        genero:
+          type: integer
+        artista:
+          type: integer
+        precio:
+          type: number
+          format: float
       type: object
     AlbumDetalle:
-      allOf:
-      - $ref: "#/components/schemas/Album"
-      - properties:
-          canciones:
-            items:
-              $ref: "#/components/schemas/Cancion"
-            type: array
-        type: object
-      example:
-        fecha: 2024-09-15
-        canciones:
-        - album: 1
-          duracion: 3:45
-          id: 1
-          nombre: Sunrise
-          urlImagen: https://example.com/images/song1.jpg
-        - album: 1
-          duracion: 3:45
-          id: 1
-          nombre: Sunrise
-          urlImagen: https://example.com/images/song1.jpg
-        artista: 1
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Indie Vibes
+        duracion:
+          type: string
+          description: Duracion en formato MM:SS
+          example: "42:15"
+        fecha:
+          type: string
+          format: date
+          example: "2024-09-15"
         genero:
-          id: 1
-          nombre: Indie
-        duracion: 42:15
-        id: 1
-        nombre: Indie Vibes
-        urlImagen: https://example.com/images/album1.jpg
+          $ref: "#/components/schemas/Genero"
+        artista:
+          type: integer
+          example: 1
+        nombreArtista:
+          type: string
+          example: "Nombre del Artista"
+        precio:
+          type: number
+          format: float
+          example: 9.99
+        canciones:
+          items:
+            $ref: "#/components/schemas/Cancion"
+          type: array
+      type: object
     Cancion:
       example:
         album: 1
-        duracion: 3:45
+        duracion: "3:45"
         id: 1
         nombre: Sunrise
-        urlImagen: https://example.com/images/song1.jpg
+        archivoAudio: null
       properties:
         id:
           example: 1
@@ -707,19 +930,19 @@ components:
           example: Sunrise
           type: string
         duracion:
-          example: 3:45
+          example: "3:45"
           type: string
-        urlImagen:
-          example: https://example.com/images/song1.jpg
-          type: string
+          description: Duracion en formato MM:SS
         album:
           example: 1
           type: integer
+        archivoAudio:
+          type: string
+          format: byte
+          description: Archivo de audio en formato binario (BYTEA)
       required:
-      - album
-      - duracion
       - nombre
-      - urlImagen
+      - duracion
       type: object
     Genero:
       example:
@@ -742,7 +965,8 @@ components:
         id: 1
         stock: 50
         nombre: Camiseta Indie Vibes
-        urlImagen: https://example.com/images/merch1.jpg
+        imagen: null
+        nombre_artista: "Nombre del Artista"
       properties:
         id:
           example: 1
@@ -754,12 +978,17 @@ components:
           example: 25.0
           format: float
           type: number
-        urlImagen:
-          example: https://example.com/images/merch1.jpg
+        imagen:
           type: string
+          format: byte
+          description: Imagen del producto en formato binario (BYTEA)
         artista:
           example: 1
           type: integer
+        nombre_artista:
+          type: string
+          example: "Nombre del Artista"
+          description: Nombre del artista (obtenido del microservicio de usuarios)
         stock:
           example: 50
           type: integer
@@ -768,15 +997,55 @@ components:
       - nombre
       - precio
       - stock
-      - urlImagen
+      type: object
+    CreateMerchRequest:
+      properties:
+        nombre:
+          type: string
+          example: Camiseta Indie Vibes
+        precio:
+          type: number
+          format: float
+          example: 25.0
+        imagen:
+          type: string
+          format: byte
+          description: Imagen del producto en formato binario
+        artista:
+          type: integer
+          example: 1
+        stock:
+          type: integer
+          example: 50
+      required:
+      - nombre
+      - precio
+      - artista
+      - stock
+      type: object
+    UpdateMerchRequest:
+      properties:
+        nombre:
+          type: string
+        precio:
+          type: number
+          format: float
+        imagen:
+          type: string
+          format: byte
+        artista:
+          type: integer
+        stock:
+          type: integer
       type: object
     Noticia:
       example:
-        fecha: 2024-09-15
+        fecha: "2024-09-15"
         contenidoHTML: <p>El esperado album Indie Vibes ya esta disponible.</p>
         titulo: Nuevo album Indie Vibes lanzado
         id: 1
         autor: 1
+        nombreAutor: "Nombre del Autor"
       properties:
         id:
           example: 1
@@ -788,19 +1057,22 @@ components:
           example: <p>El esperado album Indie Vibes ya esta disponible.</p>
           type: string
         fecha:
-          example: 2024-09-15
-          format: date
+          example: "2024-09-15"
           type: string
+          description: Fecha en formato ISO 8601
         autor:
           example: 1
           type: integer
+        nombreAutor:
+          type: string
+          example: "Nombre del Autor"
+          description: Nombre del autor (obtenido del microservicio de usuarios)
       required:
       - autor
       - contenidoHTML
-      - fecha
       - titulo
       type: object
-    recargarStockMerch:
+    RecargarStockMerch:
       properties:
         cantidad:
           description: Nueva cantidad a sumar del producto
@@ -808,15 +1080,7 @@ components:
       required:
       - cantidad
       type: object
-    recargarStockAlbum:
-      properties:
-        cantidad:
-          description: Nueva cantidad a sumar de albumes
-          type: integer
-      required:
-      - cantidad
-      type: object
-    disminuirStockMerch:
+    DisminuirStockMerch:
       properties:
         cantidad:
           description: Nueva cantidad a restar del producto
@@ -824,20 +1088,12 @@ components:
       required:
       - cantidad
       type: object
-    disminuirStockAlbum:
-      properties:
-        cantidad:
-          description: Nueva cantidad a restar de albumes
-          type: integer
-      required:
-      - cantidad
-      type: object
     VerAutoresCancion:
       example:
-        idCancion: 0
+        idCancion: 1
         artistas:
         - 6
-        - 6
+        - 7
       properties:
         idCancion:
           description: ID de la cancion
@@ -849,4 +1105,150 @@ components:
       required:
       - artistas
       - idCancion
+      type: object
+    SearchResponse:
+      properties:
+        page:
+          type: integer
+          description: Número de página actual
+          example: 1
+        per_page:
+          type: integer
+          description: Resultados por página
+          example: 10
+        totals:
+          type: object
+          description: Totales de cada tipo de resultado
+          additionalProperties:
+            type: integer
+          example:
+            albumes: 5
+            canciones: 10
+            merch: 3
+            artistas: 2
+        results:
+          type: object
+          description: Resultados de búsqueda por tipo
+          additionalProperties:
+            type: array
+            items:
+              type: object
+      type: object
+    AlbumResult:
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        duracion:
+          type: integer
+          description: Duracion en segundos
+        imagen:
+          type: string
+          description: Imagen en formato base64
+        fecha:
+          type: string
+        genero:
+          type: integer
+        artista:
+          type: integer
+        nombre_artista:
+          type: string
+        precio:
+          type: number
+          format: float
+        formatos:
+          type: array
+          items:
+            type: integer
+      type: object
+    CancionResult:
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        duracion:
+          type: integer
+          description: Duracion en segundos
+        album:
+          type: integer
+      type: object
+    ArtistResult:
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        albums_count:
+          type: integer
+        songs_count:
+          type: integer
+        merch_count:
+          type: integer
+      type: object
+    PedidoRequest:
+      properties:
+        cliente_id:
+          type: integer
+          example: 1
+        producto:
+          $ref: "#/components/schemas/ProductoPedido"
+        pago:
+          $ref: "#/components/schemas/Pago"
+      required:
+      - cliente_id
+      - producto
+      - pago
+      type: object
+    ProductoPedido:
+      properties:
+        id:
+          type: integer
+          description: ID del producto (album o merchandising)
+          example: 1
+        tipo:
+          type: string
+          enum: [fisico, digital]
+          description: Tipo de producto (fisico para merch, digital para albumes)
+          example: "digital"
+        cantidad:
+          type: integer
+          description: Cantidad solicitada
+          example: 1
+      required:
+      - id
+      - tipo
+      - cantidad
+      type: object
+    Pago:
+      properties:
+        tipo:
+          type: string
+          example: "tarjeta"
+        numero:
+          type: string
+          description: Número de tarjeta (16 dígitos)
+          example: "1234567890123456"
+        cvv:
+          type: string
+          example: "123"
+        expiracion:
+          type: string
+          example: "12/25"
+      required:
+      - tipo
+      - numero
+      - cvv
+      - expiracion
+      type: object
+    PedidoResponse:
+      properties:
+        mensaje:
+          type: string
+          example: "Compra confirmada correctamente. Gracias por tu pedido."
+        total:
+          type: number
+          format: float
+          example: 9.99
       type: object
