@@ -19,4 +19,6 @@ type Noticia struct {
 	Fecha string `json:"fecha"`
 
 	Autor int32 `json:"autor"`
+
+	NombreAutor string `json:"nombreAutor,omitempty"`
 }

@@ -15,49 +15,12 @@ import (
     "strings"
     "fmt"
     "encoding/base64"
-    "encoding/json"
-    "io"
 
     "github.com/gin-gonic/gin"
 )
 
 type SearchAPI struct {
     DB *sql.DB
-}
-
-// Estructura para la respuesta del microservicio de usuarios
-type UsuarioResponse struct {
-    Id    int32  `json:"id"`
-    Nombre string `json:"nombre"`
-    Correo string `json:"correo,omitempty"`
-}
-
-// obtenerNombreArtista obtiene el nombre del artista desde el microservicio de usuarios
-func (api *SearchAPI) obtenerNombreArtista(artistaID int32) (string, error) {
-    // URL del microservicio de usuarios (ajusta el puerto según tu configuración)
-    url := "http://usuarios-app:8080/usuarios/" + strconv.Itoa(int(artistaID))
-    
-    resp, err := http.Get(url)
-    if err != nil {
-        return "", fmt.Errorf("error al conectar con microservicio de usuarios: %v", err)
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK {
-        return "", fmt.Errorf("usuario no encontrado (status: %d)", resp.StatusCode)
-    }
-
-    body, err := io.ReadAll(resp.Body)
-    if err != nil {
-        return "", fmt.Errorf("error al leer respuesta: %v", err)
-    }
-
-    var usuario UsuarioResponse
-    if err := json.Unmarshal(body, &usuario); err != nil {
-        return "", fmt.Errorf("error al parsear respuesta: %v", err)
-    }
-
-    return usuario.Nombre, nil
 }
 
 // ResolverIDGenero retorna el id del género para un parámetro dado que puede ser un ID o un nombre.
@@ -222,7 +185,7 @@ func (api *SearchAPI) BuscarAlbumes(q string, generoID *int, formatoID *int, pag
         }
         
         // Obtener nombre del artista
-        nombreArtista, err := api.obtenerNombreArtista(a.Artista)
+        nombreArtista, err := ObtenerNombreUsuario(a.Artista)
         if err == nil {
             a.NombreArtista = nombreArtista
         } else {
@@ -335,7 +298,7 @@ func (api *SearchAPI) BuscarMerch(q string, pagina, porPagina int) ([]Merch, int
         }
         
         // Obtener nombre del artista
-        nombreArtista, err := api.obtenerNombreArtista(m.Artista)
+        nombreArtista, err := ObtenerNombreUsuario(m.Artista)
         if err == nil {
             m.NombreArtista = nombreArtista
         }
@@ -458,7 +421,7 @@ func (api *SearchAPI) BuscarArtistas(q string, generoID *int) ([]ArtistResult, i
     // Obtener nombres de artistas
     var artistas []ArtistResult
     for _, a := range artistasMap {
-        nombreArtista, err := api.obtenerNombreArtista(a.Id)
+        nombreArtista, err := ObtenerNombreUsuario(a.Id)
         if err == nil {
             a.Nombre = nombreArtista
         }

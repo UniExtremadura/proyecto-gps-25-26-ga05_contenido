@@ -11,6 +11,7 @@ package openapi
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -55,6 +56,16 @@ func (api *NoticiasAPI) NoticiasIdGet(c *gin.Context) {
 	// Convertir la fecha a string
 	n.Fecha = fecha.Format("2006-01-02")
 
+	// Obtener nombre del autor desde el microservicio de usuarios
+	nombreAutor, err := ObtenerNombreUsuario(n.Autor)
+	if err != nil {
+		// Si falla la consulta al microservicio de usuarios, usar un valor por defecto
+		n.NombreAutor = "Autor Desconocido"
+		fmt.Printf("Error al obtener nombre del autor: %v\n", err)
+	} else {
+		n.NombreAutor = nombreAutor
+	}
+
 	c.JSON(200, n)
 }
 
@@ -93,8 +104,18 @@ func (api *NoticiasAPI) NoticiasGet(c *gin.Context) {
 			return
 		}
 
-		// Hay que convertir la fecha de string a Time
+		// Convertir la fecha de string a Time
 		n.Fecha = fecha.Format("2006-01-02")
+
+		// Obtener nombre del autor desde el microservicio de usuarios
+		nombreAutor, err := ObtenerNombreUsuario(n.Autor)
+		if err != nil {
+			// Si falla la consulta al microservicio de usuarios, usar un valor por defecto
+			n.NombreAutor = "Autor Desconocido"
+			fmt.Printf("Error al obtener nombre del autor: %v\n", err)
+		} else {
+			n.NombreAutor = nombreAutor
+		}
 
 		noticias = append(noticias, n)
 	}

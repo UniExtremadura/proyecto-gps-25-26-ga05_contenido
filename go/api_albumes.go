@@ -11,9 +11,7 @@ package openapi
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -520,7 +518,7 @@ func (api *AlbumesAPI) AlbumsIdDetalleGet(c *gin.Context) {
 	}
 
 	// Obtener información del artista desde el microservicio de usuarios
-	artistaNombre, err := api.obtenerNombreArtista(artistaID)
+	artistaNombre, err := ObtenerNombreUsuario(artistaID)
 	if err != nil {
 		// Si falla la consulta al microservicio de usuarios, usar un valor por defecto
 		artistaNombre = "Artista Desconocido"
@@ -644,31 +642,4 @@ func (api *AlbumesAPI) AlbumsIdImagenGet(c *gin.Context) {
 	
 	// Enviar la imagen
 	c.Data(http.StatusOK, contentType, imagen)
-}
-
-// obtenerNombreArtista obtiene el nombre del artista desde el microservicio de usuarios
-func (api *AlbumesAPI) obtenerNombreArtista(artistaID int32) (string, error) {
-	url := "http://usuarios-app:8080/usuarios/" + strconv.Itoa(int(artistaID))
-	
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", fmt.Errorf("error al conectar con microservicio de usuarios: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("usuario no encontrado (status: %d)", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("error al leer respuesta: %v", err)
-	}
-
-	var usuario UsuarioResponse
-	if err := json.Unmarshal(body, &usuario); err != nil {
-		return "", fmt.Errorf("error al parsear respuesta: %v", err)
-	}
-
-	return usuario.Nombre, nil
 }

@@ -94,7 +94,7 @@ func (api *MerchandisingAPI) MerchIdDisminuirStockMerchPatch(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"status":   "OK",
-		"message":  "Stock incrementado correctamente",
+		"message":  "Stock decrementado correctamente",
 		"merch_id": id,
 		"cantidad": req.Cantidad,
 	})
