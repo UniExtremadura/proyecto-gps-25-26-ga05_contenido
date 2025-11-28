@@ -18,19 +18,19 @@ INSERT INTO formato (nombre) VALUES
 INSERT INTO album (nombre, duracion, imagen, fecha, genero, artista, precio) VALUES
 ('Alpha', 2400, 
  pg_read_binary_file('/tmp/assets/album_images/alpha.jpg')::bytea, 
- '2023-09-01', 1, 1, 12.99),
+ '2023-09-01', 1, 5, 12.99),
 ('AM', 2700, 
  pg_read_binary_file('/tmp/assets/album_images/am.jpg')::bytea, 
- '2013-09-09', 2, 2, 14.99),
+ '2013-09-09', 2, 6, 14.99),
 ('Un Verano Sin Ti', 3300, 
  pg_read_binary_file('/tmp/assets/album_images/un_verano_sin_ti.jpg')::bytea, 
- '2022-05-06', 3, 3, 11.99),
+ '2022-05-06', 3, 7, 11.99),
 ('Cable a Tierra', 2900, 
  pg_read_binary_file('/tmp/assets/album_images/cable_a_tierra.jpg')::bytea, 
- '2021-10-29', 4, 4, 13.99),
+ '2021-10-29', 4, 8, 13.99),
 ('7', 2500, 
  pg_read_binary_file('/tmp/assets/album_images/7.jpg')::bytea, 
- '2018-09-14', 5, 5, 10.99);
+ '2018-09-14', 5, 9, 10.99);
 
 -- Asignar formatos disponibles para cada álbum
 INSERT INTO album_formato (album, formato) VALUES
@@ -103,36 +103,32 @@ INSERT INTO cancion (nombre, duracion, album, archivo_audio) VALUES
 -- Relaciones artista_cancion
 INSERT INTO artista_cancion (cancion, artista) VALUES
 -- Aitana
-(1, 1), (2, 1), (3, 1), (4, 1),
+(1, 5), (2, 5), (3, 5), (4, 5),
 
 -- Arctic Monkeys
-(5, 2), (6, 2), (7, 2), (8, 2), (9, 2),
+(5, 6), (6, 6), (7, 6), (8, 6), (9, 6),
 
 -- Bad Bunny
-(10, 3), (11, 3), (12, 3), (13, 3), (14, 3),
+(10, 7), (11, 7), (12, 7), (13, 7), (14, 7),
 
 -- Vetusta Morla
-(15, 4), (16, 4), (17, 4),
+(15, 8), (16, 8), (17, 8),
 
 -- David Guetta
-(18, 5), (19, 5), (20, 5),
-
--- Colaboraciones
-(12, 1),  -- Aitana ft. Bad Bunny (Ojitos Lindos, versión remix ficticia)
-(18, 1);  -- Flames ft. Aitana
+(18, 9), (19, 9), (20, 9);
 
 -- Merchandising
 INSERT INTO merchandising (nombre, precio, imagen, artista, stock) VALUES
 ('Camiseta Aitana Alpha', 24.99,
-    pg_read_binary_file('/tmp/assets/merch/camiseta_aitana.jpg')::bytea, 1, 30),
+    pg_read_binary_file('/tmp/assets/merch/camiseta_aitana.jpg')::bytea, 5, 30),
 ('Camiseta Arctic Monkeys AM', 34.99, 
-    pg_read_binary_file('/tmp/assets/merch/camiseta_arctic.jpg')::bytea, 2, 15),
+    pg_read_binary_file('/tmp/assets/merch/camiseta_arctic.jpg')::bytea, 6, 15),
 ('Gorra Bad Bunny', 19.99, 
-    pg_read_binary_file('/tmp/assets/merch/gorra_bad.jpg')::bytea, 3, 50),
+    pg_read_binary_file('/tmp/assets/merch/gorra_bad.jpg')::bytea, 7, 50),
 ('Sudadera Vetusta Morla', 29.99, 
-    pg_read_binary_file('/tmp/assets/merch/sudadera_vetusta_morla.jpg')::bytea, 4, 20),
+    pg_read_binary_file('/tmp/assets/merch/sudadera_vetusta_morla.jpg')::bytea, 8, 20),
 ('Pulsera David Guetta', 9.99, 
-    pg_read_binary_file('/tmp/assets/merch/pulsera_david_guetta.jpg')::bytea, 5, 60);
+    pg_read_binary_file('/tmp/assets/merch/pulsera_david_guetta.jpg')::bytea, 9, 60);
 -- Noticias
 INSERT INTO noticia (titulo, contenidoHTML, fecha, autor) VALUES
 ('Aitana estrena Alpha con gran éxito',
