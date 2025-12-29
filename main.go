@@ -26,6 +26,7 @@ func main() {
 		SearchAPI:        sw.SearchAPI{DB: db.DB},
 		NoticiasAPI:	  sw.NoticiasAPI{DB: db.DB},
 		GenerosAPI:       sw.GenerosAPI{DB: db.DB},
+		MetricsAPI:       sw.MetricsAPI{},
 	}
 
 	log.Printf("Servidor iniciado")

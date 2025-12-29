@@ -1,0 +1,22 @@
+# Fichero de ejemplo.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'contenido-app'
+    static_configs:
+      - targets: ['localhost:8081']  # Puerto mapeado del contenedor
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        
+remote_write:
+  - url: URL_DE_GRAFANA
+    basic_auth:
+      username: USUARIO_DE_GRAFANA
+      password: CONTRASEÑA_DE_GRAFANA

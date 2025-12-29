@@ -46,6 +46,8 @@ func NewRouterWithGinEngine(router *gin.Engine, handleFunctions ApiHandleFunctio
 		MaxAge:           12 * time.Hour,
 	}))
 
+	router.Use(MetricsMiddleware())
+
 	// El middleware decide si aplicar autenticación basándose en el endpoint
 	router.Use(func(c *gin.Context) {
 		// Rutas públicas
@@ -65,6 +67,7 @@ func NewRouterWithGinEngine(router *gin.Engine, handleFunctions ApiHandleFunctio
 			"GET /merch/:id": true,
 			"GET /noticias/:id": true,
 			"GET /noticias": true,
+			"GET /metrics": true,
 		}
 
 		// Se formatea la clave de la ruta actual
@@ -121,6 +124,8 @@ type ApiHandleFunctions struct {
 	PedidoAPI PedidoAPI
 	// Routes for the SearchAPI part of the API
 	SearchAPI SearchAPI
+	// Routes for the MetricsAPI part of the API
+	MetricsAPI MetricsAPI
 }
 
 func getRoutes(handleFunctions ApiHandleFunctions) []Route {
@@ -298,6 +303,12 @@ func getRoutes(handleFunctions ApiHandleFunctions) []Route {
 			http.MethodPost,
 			"/pedido/pago",
 			handleFunctions.PedidoAPI.Pago,
+		},
+		{
+			"MetricsGet",
+			http.MethodGet,
+			"/metrics",
+			handleFunctions.MetricsAPI.GetMetrics,
 		},
 	}
 }
